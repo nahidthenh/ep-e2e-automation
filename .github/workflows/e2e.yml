@@ -1,0 +1,129 @@
+name: EmbedPress E2E
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  WP_URL: http://localhost:8080
+  WP_PORT: 8080
+  WP_ADMIN_USER: admin
+  WP_ADMIN_PASS: admin
+  WP_ADMIN_EMAIL: admin@example.com
+  WP_TITLE: "EmbedPress E2E"
+  MYSQL_ROOT_PASSWORD: rootpass
+  MYSQL_DATABASE: wordpress
+  MYSQL_USER: wpuser
+  MYSQL_PASSWORD: wppass
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Node.js + cache ───────────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      # Cache Playwright browsers between runs
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright system deps (cached hit path)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # ── Docker ────────────────────────────────────────────────────────────
+      - name: Build & start containers
+        run: docker-compose up -d --build
+
+      # ── Wait for WordPress ────────────────────────────────────────────────
+      - name: Wait for WordPress to respond
+        run: bash scripts/wait-for-wp.sh "$WP_URL/wp-login.php"
+
+      # ── WordPress install + plugins + seed ────────────────────────────────
+      - name: Install WordPress core
+        run: |
+          docker exec ep_e2e_wp wp core install \
+            --url="$WP_URL" \
+            --title="$WP_TITLE" \
+            --admin_user="$WP_ADMIN_USER" \
+            --admin_password="$WP_ADMIN_PASS" \
+            --admin_email="$WP_ADMIN_EMAIL" \
+            --skip-email \
+            --path=/var/www/html \
+            --allow-root
+
+      - name: Activate plugins
+        run: |
+          docker exec ep_e2e_wp wp plugin install classic-editor --activate \
+            --path=/var/www/html --allow-root
+          docker exec ep_e2e_wp wp plugin install elementor --activate \
+            --path=/var/www/html --allow-root
+          docker exec ep_e2e_wp wp plugin install embedpress --activate \
+            --path=/var/www/html --allow-root
+
+      - name: Set pretty permalinks
+        run: |
+          docker exec ep_e2e_wp wp rewrite structure '/%postname%/' --hard \
+            --path=/var/www/html --allow-root
+          docker exec ep_e2e_wp wp rewrite flush \
+            --path=/var/www/html --allow-root
+
+      - name: Import seed data
+        run: |
+          docker exec -i ep_e2e_db \
+            mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" \
+            < seed/seed.sql
+
+      # ── Playwright tests ──────────────────────────────────────────────────
+      - name: Run Playwright tests
+        run: npx playwright test --reporter=line,html
+        env:
+          WP_URL: ${{ env.WP_URL }}
+          WP_ADMIN_USER: ${{ env.WP_ADMIN_USER }}
+          WP_ADMIN_PASS: ${{ env.WP_ADMIN_PASS }}
+
+      # ── Artifacts ─────────────────────────────────────────────────────────
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload test videos & traces (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: test-results/
+          retention-days: 7
+
+      # ── Cleanup ───────────────────────────────────────────────────────────
+      - name: Stop containers
+        if: always()
+        run: docker-compose down -v
