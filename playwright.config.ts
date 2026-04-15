@@ -1,6 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
+  globalSetup: './global-setup.ts',
   testDir: './tests',
   fullyParallel: false,          // WP state is shared — run serially
   forbidOnly: !!process.env.CI,
@@ -15,6 +16,7 @@ export default defineConfig({
 
   use: {
     baseURL:       process.env.WP_URL ?? 'http://localhost:8080',
+    storageState:  '.auth/state.json',   // reuse session from globalSetup
     screenshot:    'only-on-failure',
     video:         'retain-on-failure',
     trace:         'retain-on-failure',

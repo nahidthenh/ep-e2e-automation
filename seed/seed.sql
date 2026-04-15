@@ -10,6 +10,9 @@ DELETE FROM wp_posts     WHERE ID       IN (100, 101, 102);
 
 -- =============================================================
 -- 1. Gutenberg page — EmbedPress YouTube block
+--    Uses embedpress/youtube-block with iframeSrc so the
+--    render_youtube_block callback outputs the iframe directly
+--    without needing a pre-baked embedHTML attribute.
 -- =============================================================
 INSERT INTO wp_posts
   (ID, post_author, post_date, post_date_gmt,
@@ -19,7 +22,7 @@ INSERT INTO wp_posts
 VALUES (
   100, 1,
   '2024-01-01 00:00:00', '2024-01-01 00:00:00',
-  '<!-- wp:embedpress/embedpress {"url":"https://www.youtube.com/watch?v=jNQXAC9IVRw"} -->\n<figure class="wp-block-embedpress-embedpress"><div class="ep-embed-content-wraper"></div></figure>\n<!-- /wp:embedpress/embedpress -->',
+  '<!-- wp:embedpress/youtube-block {"iframeSrc":"https://www.youtube.com/embed/jNQXAC9IVRw","align":"center","width":600,"height":450} /-->',
   'EP Gutenberg YouTube Test',
   'publish', 'page',
   'ep-gutenberg-youtube-test',
@@ -77,10 +80,12 @@ VALUES (
 
 -- Elementor meta: tells Elementor this page is builder-managed
 INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES
-  (102, '_wp_page_template',   'elementor_header_footer'),
+  (102, '_wp_page_template',   'default'),
   (102, '_elementor_edit_mode','builder'),
   (102, '_elementor_template_type', 'wp-page'),
   (102, '_elementor_version',  '3.18.0'),
+  -- widgetType = "embedpres_elementor" (EmbedPress typo — missing final 's')
+  -- URL key    = "embedpress_embeded_link" (also a typo in EmbedPress source)
   (102, '_elementor_data',
-   '[{"id":"s1a2b3c4","elType":"section","settings":{},"elements":[{"id":"c5d6e7f8","elType":"column","settings":{"_column_size":100,"_inline_size":null},"elements":[{"id":"w9a0b1c2","elType":"widget","widgetType":"embedpress","settings":{"url":"https://www.youtube.com/watch?v=jNQXAC9IVRw","width":"600","height":"450"},"elements":[],"isInner":false}],"isInner":false}],"isInner":false}]'
+   '[{"id":"s1a2b3c4","elType":"section","settings":{},"elements":[{"id":"c5d6e7f8","elType":"column","settings":{"_column_size":100,"_inline_size":null},"elements":[{"id":"w9a0b1c2","elType":"widget","widgetType":"embedpres_elementor","settings":{"embedpress_embeded_link":"https://www.youtube.com/watch?v=jNQXAC9IVRw","width":"600","height":"450"},"elements":[],"isInner":false}],"isInner":false}],"isInner":false}]'
   );

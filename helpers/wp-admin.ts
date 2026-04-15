@@ -1,17 +1,28 @@
-import { Page, expect } from '@playwright/test';
+import { Page, FrameLocator, expect } from '@playwright/test';
 
 // ─── Navigation ────────────────────────────────────────────────────────────
 
 export async function goToNewGutenbergPage(page: Page): Promise<void> {
   await page.goto('/wp-admin/post-new.php?post_type=page');
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('domcontentloaded');
   await dismissWelcomeModal(page);
 }
 
 export async function goToNewClassicPage(page: Page): Promise<void> {
-  // classic-editor plugin appends `?classic-editor` flag
+  // Classic Editor plugin is set to "no-replace" mode so Gutenberg is the
+  // default. `?classic-editor` forces the Classic Editor for this request.
   await page.goto('/wp-admin/post-new.php?post_type=page&classic-editor');
   await page.waitForLoadState('domcontentloaded');
+  // Wait for the Classic Editor title field to confirm the right editor loaded
+  await page.locator('#title').waitFor({ state: 'visible', timeout: 15_000 });
+}
+
+// ─── Gutenberg iframe canvas (WP 6.2+) ─────────────────────────────────────
+// Since WP 6.2 the block editor renders inside <iframe name="editor-canvas">.
+// Toolbar, inserter, and publish button remain in the outer document.
+
+export function getEditorCanvas(page: Page): FrameLocator {
+  return page.frameLocator('iframe[name="editor-canvas"]');
 }
 
 export async function goToAdminPagesList(page: Page): Promise<void> {
@@ -21,21 +32,43 @@ export async function goToAdminPagesList(page: Page): Promise<void> {
 
 // ─── Gutenberg helpers ─────────────────────────────────────────────────────
 
-/** Dismisses the Gutenberg welcome guide if present. */
+/**
+ * Dismisses any modal that can block the editor on a new page:
+ *  - WP 6.9 "Choose a pattern" starter dialog
+ *  - Gutenberg welcome guide
+ */
 async function dismissWelcomeModal(page: Page): Promise<void> {
-  const modal = page.locator('.edit-post-welcome-guide, .components-guide__finish-button');
-  if (await modal.first().isVisible({ timeout: 3_000 }).catch(() => false)) {
+  // "Choose a pattern" dialog (WP 6.9+) — close via the X button
+  const patternDialog = page.locator('[aria-label="Choose a pattern"],' +
+    'div[role="dialog"]:has(h1:text("Choose a pattern"))');
+  if (await patternDialog.first().isVisible({ timeout: 5_000 }).catch(() => false)) {
+    const closeBtn = page.locator(
+      '[aria-label="Close"], ' +
+      'button.components-button[aria-label*="Close"], ' +
+      'button.components-modal__header-actions button'
+    ).first();
+    await closeBtn.click();
+    await patternDialog.first().waitFor({ state: 'hidden', timeout: 5_000 });
+  }
+
+  // Classic welcome guide
+  const welcomeModal = page.locator('.edit-post-welcome-guide, .components-guide__finish-button');
+  if (await welcomeModal.first().isVisible({ timeout: 3_000 }).catch(() => false)) {
     const closeBtn = page.locator(
       '[aria-label="Close"], .edit-post-welcome-guide button, .components-guide__finish-button'
     ).first();
     await closeBtn.click();
-    await modal.first().waitFor({ state: 'hidden' });
+    await welcomeModal.first().waitFor({ state: 'hidden', timeout: 5_000 });
   }
 }
 
-/** Types the page title in Gutenberg. */
+/** Types the page title in Gutenberg. Targets the iframed editor canvas. */
 export async function setGutenbergTitle(page: Page, title: string): Promise<void> {
-  const titleInput = page.locator('.editor-post-title__input, [aria-label="Add title"]');
+  const canvas = getEditorCanvas(page);
+  const titleInput = canvas.locator(
+    '[aria-label="Add title"], .editor-post-title__input, h1[contenteditable="true"]'
+  ).first();
+  await expect(titleInput).toBeVisible({ timeout: 20_000 });
   await titleInput.click();
   await titleInput.fill(title);
 }

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "commonjs",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
@@ -12,6 +12,6 @@
       "@helpers/*": ["helpers/*"]
     }
   },
-  "include": ["tests/**/*.ts", "helpers/**/*.ts", "playwright.config.ts"],
+  "include": ["tests/**/*.ts", "helpers/**/*.ts", "playwright.config.ts", "global-setup.ts"],
   "exclude": ["node_modules", "dist"]
 }

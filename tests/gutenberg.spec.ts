@@ -10,6 +10,7 @@ import { test, expect, Page } from '@playwright/test';
 import { loginAsAdmin } from '../helpers/auth';
 import {
   goToNewGutenbergPage,
+  getEditorCanvas,
   setGutenbergTitle,
   insertBlock,
   publishGutenbergPage,
@@ -49,8 +50,9 @@ test.describe('Gutenberg — Create new page', () => {
     // ── Insert EmbedPress block ────────────────────────────────────────────
     await insertBlock(page, 'EmbedPress');
 
-    // The block renders a URL input after insertion
-    const urlInput = page.locator(
+    // The block renders a URL input inside the editor canvas iframe
+    const canvas = getEditorCanvas(page);
+    const urlInput = canvas.locator(
       'input[placeholder*="URL"], input[placeholder*="url"], ' +
       '.components-placeholder__input'
     ).first();

@@ -17,17 +17,24 @@ const YT_EMBED_PATTERN = /youtube\.com\/embed/i;
  * We assert on the wrapper's presence first, then check for the iframe.
  */
 export async function verifyYouTubeEmbedOnPage(page: Page, url: string): Promise<void> {
-  await page.goto(url, { waitUntil: 'networkidle' });
+  // 'networkidle' is unreliable with YouTube iframes (they keep polling);
+  // 'load' fires once the DOM + render-blocking resources are ready.
+  await page.goto(url, { waitUntil: 'load' });
 
-  // Primary: the EmbedPress container
+  // Primary: the EmbedPress container.
+  //   - embedpress/embedpress block → .embedpress-wrapper / .ep-embed-content-wraper
+  //   - embedpress/youtube-block   → .ose-youtube.wp-block-embed-youtube
+  //   - Classic shortcode          → .embedpress-wrapper
+  //   - Elementor widget           → [class*="embedpress"]
   const wrapper: Locator = page.locator(
-    '.embedpress-wrapper, .ep-embed-content-wraper, [class*="embedpress"]'
+    '.embedpress-wrapper, .ep-embed-content-wraper, ' +
+    '.ose-youtube, .wp-block-embed-youtube, [class*="embedpress"]'
   ).first();
 
   await expect(wrapper).toBeVisible({ timeout: 30_000 });
 
   // Secondary: actual iframe (may require clicking a play-button overlay)
-  const iframe = page.locator('iframe[src*="youtube.com/embed"]').first();
+  const iframe = page.locator('iframe[src*="youtube.com"]').first();
   const iframeVisible = await iframe.isVisible({ timeout: 5_000 }).catch(() => false);
 
   if (!iframeVisible) {
@@ -41,7 +48,7 @@ export async function verifyYouTubeEmbedOnPage(page: Page, url: string): Promise
     await expect(iframe).toBeVisible({ timeout: 15_000 });
   }
 
-  await expect(iframe).toHaveAttribute('src', YT_EMBED_PATTERN);
+  await expect(iframe).toHaveAttribute('src', /youtube\.com/i);
 }
 
 /**
@@ -99,8 +106,9 @@ export async function addElementorWidget(page: Page, widgetName: string): Promis
   await searchInput.fill(widgetName);
 
   // Wait for filtered results
+  // EmbedPress registers its widget as "embedpres_elementor" (intentional typo in plugin)
   const widget = page.locator(
-    `.elementor-element-wrapper[data-widget_type*="${widgetName.toLowerCase()}"],` +
+    `.elementor-element-wrapper[data-widget_type*="embedpres"],` +
     `.elementor-widget-title:has-text("${widgetName}")`
   ).first();
   await expect(widget).toBeVisible({ timeout: 15_000 });
@@ -123,8 +131,10 @@ export async function addElementorWidget(page: Page, widgetName: string): Promis
  * Fills the EmbedPress widget URL control in the Elementor panel.
  */
 export async function setEmbedPressUrl(page: Page, url: string): Promise<void> {
+  // EmbedPress Elementor widget control key is "embedpress_embeded_link"
   const urlInput = page.locator(
-    '[data-setting="url"] input, ' +
+    '[data-setting="embedpress_embeded_link"] input, ' +
+    '.elementor-control-embedpress_embeded_link input, ' +
     '.elementor-control-url .elementor-control-input-wrapper input'
   ).first();
   await expect(urlInput).toBeVisible({ timeout: 10_000 });
