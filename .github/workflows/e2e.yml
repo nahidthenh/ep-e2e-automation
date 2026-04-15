@@ -1,10 +1,6 @@
 name: EmbedPress E2E
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
   workflow_dispatch:
     inputs:
       ep_free_plugin_path:
