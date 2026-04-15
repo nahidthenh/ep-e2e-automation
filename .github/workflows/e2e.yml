@@ -2,19 +2,48 @@ name: EmbedPress E2E
 
 on:
   push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
   workflow_dispatch:
+    inputs:
+      ep_free_plugin_path:
+        description: "Relative path to EmbedPress free plugin (leave blank for wordpress.org)"
+        required: false
+        default: ""
+      ep_pro_plugin_path:
+        description: "Relative path to EmbedPress Pro plugin (leave blank to skip)"
+        required: false
+        default: ""
+
+# ── How to supply plugin builds in CI ────────────────────────────────────────
+# Option A (recommended): Store plugin zips as GitHub Actions artifacts or
+#   secrets, then unzip them before running this workflow.
+# Option B: Use the free version from wordpress.org by leaving
+#   EP_FREE_PLUGIN_PATH / EP_PRO_PLUGIN_PATH empty.
+# Option C: Store zipped plugin in the repo under plugins/ (gitignored by default;
+#   remove the .gitignore entry if you want to commit pre-built zips for CI).
+# ─────────────────────────────────────────────────────────────────────────────
 
 env:
-  WP_URL: http://localhost:8080
-  WP_PORT: 8080
-  WP_ADMIN_USER: admin
-  WP_ADMIN_PASS: admin
-  WP_ADMIN_EMAIL: admin@example.com
-  WP_TITLE: "EmbedPress E2E"
+  WP_URL:          http://localhost:8080
+  WP_PORT:         8080
+  WP_ADMIN_USER:   admin
+  WP_ADMIN_PASS:   admin
+  WP_ADMIN_EMAIL:  admin@example.com
+  WP_TITLE:        "EmbedPress E2E"
   MYSQL_ROOT_PASSWORD: rootpass
-  MYSQL_DATABASE: wordpress
-  MYSQL_USER: wpuser
-  MYSQL_PASSWORD: wppass
+  MYSQL_DATABASE:  wordpress
+  MYSQL_USER:      wpuser
+  MYSQL_PASSWORD:  wppass
+
+  # Plugin paths (relative to repo root).
+  # Priority: workflow_dispatch input > empty (falls back to wordpress.org).
+  # For push/PR triggers, set repository variables in:
+  #   Settings → Secrets and variables → Actions → Variables
+  # and update these values to ${{ vars.EP_FREE_PLUGIN_PATH }} etc.
+  EP_FREE_PLUGIN_PATH: ${{ github.event.inputs.ep_free_plugin_path || '' }}
+  EP_PRO_PLUGIN_PATH:  ${{ github.event.inputs.ep_pro_plugin_path  || '' }}
 
 jobs:
   e2e:
@@ -22,11 +51,30 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      # ── Checkout ──────────────────────────────────────────────────────────
+      # ── Checkout ────────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── Node.js + cache ───────────────────────────────────────────────────
+      # ── (Optional) Restore plugin builds from GitHub Actions cache ──────────
+      # If you zip your plugin builds and store them as artifacts or in a
+      # separate release asset, download and unzip them here. Example:
+      #
+      # - name: Download EmbedPress builds
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: embedpress-builds
+      #     path: plugins/
+      #
+      # - name: Unzip plugins
+      #   run: |
+      #     unzip -q plugins/embedpress.zip      -d plugins/embedpress
+      #     unzip -q plugins/embedpress-pro.zip  -d plugins/embedpress-pro
+      #
+      # Then set in env:
+      #   EP_FREE_PLUGIN_PATH: plugins/embedpress
+      #   EP_PRO_PLUGIN_PATH:  plugins/embedpress-pro
+
+      # ── Node.js ─────────────────────────────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -36,7 +84,6 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
-      # Cache Playwright browsers between runs
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         id: pw-cache
@@ -48,43 +95,71 @@ jobs:
         if: steps.pw-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
-      - name: Install Playwright system deps (cached hit path)
+      - name: Install Playwright system deps (cache hit)
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      # ── Docker ────────────────────────────────────────────────────────────
+      # ── Docker ──────────────────────────────────────────────────────────────
       - name: Build & start containers
-        run: docker-compose up -d --build
+        run: docker compose up -d --build
 
-      # ── Wait for WordPress ────────────────────────────────────────────────
-      - name: Wait for WordPress to respond
+      # ── Wait for WordPress ───────────────────────────────────────────────────
+      - name: Wait for WordPress
         run: bash scripts/wait-for-wp.sh "$WP_URL/wp-login.php"
 
-      # ── WordPress install + plugins + seed ────────────────────────────────
+      # ── WordPress install + plugins + seed ──────────────────────────────────
       - name: Install WordPress core
         run: |
           docker exec ep_e2e_wp wp core install \
-            --url="$WP_URL" \
-            --title="$WP_TITLE" \
-            --admin_user="$WP_ADMIN_USER" \
-            --admin_password="$WP_ADMIN_PASS" \
-            --admin_email="$WP_ADMIN_EMAIL" \
-            --skip-email \
-            --path=/var/www/html \
-            --allow-root
+            --url="$WP_URL" --title="$WP_TITLE" \
+            --admin_user="$WP_ADMIN_USER" --admin_password="$WP_ADMIN_PASS" \
+            --admin_email="$WP_ADMIN_EMAIL" --skip-email \
+            --path=/var/www/html --allow-root
 
-      - name: Activate plugins
+      - name: Install Classic Editor
         run: |
           docker exec ep_e2e_wp wp plugin install classic-editor --activate \
             --path=/var/www/html --allow-root
+
+      - name: Install Elementor
+        run: |
           docker exec ep_e2e_wp wp plugin install elementor --activate \
             --path=/var/www/html --allow-root
-          docker exec ep_e2e_wp wp plugin install embedpress --activate \
-            --path=/var/www/html --allow-root
 
-      - name: Set pretty permalinks
+      - name: Install EmbedPress (free)
+        run: |
+          if [ -n "$EP_FREE_PLUGIN_PATH" ] && [ -d "$EP_FREE_PLUGIN_PATH" ]; then
+            echo "Installing EmbedPress free from $EP_FREE_PLUGIN_PATH"
+            docker exec ep_e2e_wp wp plugin delete embedpress --path=/var/www/html --allow-root 2>/dev/null || true
+            docker exec ep_e2e_wp mkdir -p /var/www/html/wp-content/plugins/embedpress
+            docker cp "$EP_FREE_PLUGIN_PATH/." ep_e2e_wp:/var/www/html/wp-content/plugins/embedpress/
+            docker exec ep_e2e_wp wp plugin activate embedpress --path=/var/www/html --allow-root
+          else
+            echo "EP_FREE_PLUGIN_PATH not set — installing from wordpress.org"
+            docker exec ep_e2e_wp wp plugin install embedpress --activate \
+              --path=/var/www/html --allow-root
+          fi
+
+      - name: Install EmbedPress Pro
+        run: |
+          if [ -n "$EP_PRO_PLUGIN_PATH" ] && [ -d "$EP_PRO_PLUGIN_PATH" ]; then
+            echo "Installing EmbedPress Pro from $EP_PRO_PLUGIN_PATH"
+            docker exec ep_e2e_wp mkdir -p /var/www/html/wp-content/plugins/embedpress-pro
+            docker cp "$EP_PRO_PLUGIN_PATH/." ep_e2e_wp:/var/www/html/wp-content/plugins/embedpress-pro/
+            docker exec ep_e2e_wp wp plugin activate embedpress-pro --path=/var/www/html --allow-root
+          else
+            echo "EP_PRO_PLUGIN_PATH not set — skipping Pro install"
+          fi
+
+      - name: Configure WordPress settings
         run: |
           docker exec ep_e2e_wp wp rewrite structure '/%postname%/' --hard \
+            --path=/var/www/html --allow-root
+          docker exec ep_e2e_wp wp option update classic-editor-replace classic \
+            --path=/var/www/html --allow-root
+          docker exec ep_e2e_wp wp option update classic-editor-allow-users allow \
+            --path=/var/www/html --allow-root
+          docker exec ep_e2e_wp wp core update-db \
             --path=/var/www/html --allow-root
           docker exec ep_e2e_wp wp rewrite flush \
             --path=/var/www/html --allow-root
@@ -95,15 +170,15 @@ jobs:
             mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" \
             < seed/seed.sql
 
-      # ── Playwright tests ──────────────────────────────────────────────────
+      # ── Playwright tests ─────────────────────────────────────────────────────
       - name: Run Playwright tests
         run: npx playwright test --reporter=line,html
         env:
-          WP_URL: ${{ env.WP_URL }}
-          WP_ADMIN_USER: ${{ env.WP_ADMIN_USER }}
-          WP_ADMIN_PASS: ${{ env.WP_ADMIN_PASS }}
+          WP_URL:         ${{ env.WP_URL }}
+          WP_ADMIN_USER:  ${{ env.WP_ADMIN_USER }}
+          WP_ADMIN_PASS:  ${{ env.WP_ADMIN_PASS }}
 
-      # ── Artifacts ─────────────────────────────────────────────────────────
+      # ── Artifacts ────────────────────────────────────────────────────────────
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -112,7 +187,7 @@ jobs:
           path: playwright-report/
           retention-days: 14
 
-      - name: Upload test videos & traces (on failure)
+      - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -120,7 +195,6 @@ jobs:
           path: test-results/
           retention-days: 7
 
-      # ── Cleanup ───────────────────────────────────────────────────────────
       - name: Stop containers
         if: always()
-        run: docker-compose down -v
+        run: docker compose down -v

@@ -1,5 +1,8 @@
 node_modules/
 .auth/
+# Plugin builds — use EP_FREE_PLUGIN_PATH / EP_PRO_PLUGIN_PATH in .env instead
+plugins/embedpress/
+plugins/embedpress-pro/
 dist/
 .env
 playwright-report/

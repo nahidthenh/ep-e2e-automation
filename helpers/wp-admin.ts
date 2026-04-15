@@ -3,17 +3,17 @@ import { Page, FrameLocator, expect } from '@playwright/test';
 // ─── Navigation ────────────────────────────────────────────────────────────
 
 export async function goToNewGutenbergPage(page: Page): Promise<void> {
-  await page.goto('/wp-admin/post-new.php?post_type=page');
+  // classic-editor-replace=classic means Classic Editor is the default.
+  // `?classic-editor__forget` bypasses it and forces the block editor.
+  await page.goto('/wp-admin/post-new.php?post_type=page&classic-editor__forget');
   await page.waitForLoadState('domcontentloaded');
   await dismissWelcomeModal(page);
 }
 
 export async function goToNewClassicPage(page: Page): Promise<void> {
-  // Classic Editor plugin is set to "no-replace" mode so Gutenberg is the
-  // default. `?classic-editor` forces the Classic Editor for this request.
-  await page.goto('/wp-admin/post-new.php?post_type=page&classic-editor');
+  // classic-editor-replace=classic → plain URL always opens Classic Editor.
+  await page.goto('/wp-admin/post-new.php?post_type=page');
   await page.waitForLoadState('domcontentloaded');
-  // Wait for the Classic Editor title field to confirm the right editor loaded
   await page.locator('#title').waitFor({ state: 'visible', timeout: 15_000 });
 }
 
