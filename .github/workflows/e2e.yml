@@ -112,11 +112,6 @@ jobs:
             --admin_email="$WP_ADMIN_EMAIL" --skip-email \
             --path=/var/www/html --allow-root
 
-      - name: Install Classic Editor
-        run: |
-          docker exec ep_e2e_wp wp plugin install classic-editor --activate \
-            --path=/var/www/html --allow-root
-
       - name: Install Elementor
         run: |
           docker exec ep_e2e_wp wp plugin install elementor --activate \
@@ -151,14 +146,16 @@ jobs:
         run: |
           docker exec ep_e2e_wp wp rewrite structure '/%postname%/' --hard \
             --path=/var/www/html --allow-root
-          docker exec ep_e2e_wp wp option update classic-editor-replace classic \
-            --path=/var/www/html --allow-root
-          docker exec ep_e2e_wp wp option update classic-editor-allow-users allow \
-            --path=/var/www/html --allow-root
           docker exec ep_e2e_wp wp core update-db \
             --path=/var/www/html --allow-root
           docker exec ep_e2e_wp wp rewrite flush \
             --path=/var/www/html --allow-root
+
+      - name: Fix wp-content ownership
+        # wp-cli ran as root, so plugin/theme files are root-owned. Apache runs
+        # as www-data — without this chown, dashboard deletes fail with
+        # "Could not fully remove the plugin/theme".
+        run: docker exec ep_e2e_wp chown -R www-data:www-data /var/www/html/wp-content
 
       - name: Seed test pages from sources.json
         run: bash scripts/seed-pages.sh

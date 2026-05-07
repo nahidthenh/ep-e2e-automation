@@ -64,9 +64,6 @@ wp_cli core install \
   --admin_email="$WP_ADMIN_EMAIL" \
   --skip-email
 
-echo "━━━ Installing Classic Editor ━━━"
-wp_cli plugin install classic-editor --activate
-
 echo "━━━ Installing Elementor ━━━"
 wp_cli plugin install elementor --activate
 
@@ -100,15 +97,14 @@ echo "━━━ Setting permalink structure ━━━"
 wp_cli rewrite structure '/%postname%/' --hard
 wp_cli rewrite flush
 
-echo "━━━ Configuring Classic Editor ━━━"
-# classic → Classic Editor is the default for all users.
-# Tests that need Gutenberg use ?classic-editor__forget in the URL.
-# classic-editor-allow-users=allow → lets tests switch per-request.
-wp_cli option update classic-editor-replace classic
-wp_cli option update classic-editor-allow-users allow
-
 echo "━━━ Running WordPress DB upgrade (if needed) ━━━"
 wp_cli core update-db
+
+echo "━━━ Fixing wp-content ownership ━━━"
+# wp-cli ran as root, so plugin/theme files are root-owned. Apache runs as
+# www-data — without this chown, deletes from the WP dashboard fail with
+# "Could not fully remove the plugin/theme".
+docker exec "$WP_CONTAINER" chown -R www-data:www-data /var/www/html/wp-content
 
 echo "━━━ Seeding test pages from sources.json ━━━"
 bash scripts/seed-pages.sh

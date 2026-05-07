@@ -3,9 +3,7 @@ import { Page, Locator, expect } from '@playwright/test';
 // ─── Navigation ────────────────────────────────────────────────────────────
 
 export async function goToNewGutenbergPage(page: Page): Promise<void> {
-  // classic-editor-replace=classic means Classic Editor is the default.
-  // `?classic-editor__forget` bypasses it and forces the block editor.
-  await page.goto('/wp-admin/post-new.php?post_type=page&classic-editor__forget');
+  await page.goto('/wp-admin/post-new.php?post_type=page');
   await page.waitForLoadState('domcontentloaded');
   // Wait until Gutenberg's React app has booted (canvas or modal will appear)
   await waitForGutenbergReady(page);
