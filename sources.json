@@ -1,0 +1,374 @@
+[
+    {
+        "source": "Google Docs",
+        "url": "https://docs.google.com/document/d/e/2PACX-1vQBdUB9bU8y9hnIrDvMPHM8TZDkN7TQLPEYLnc-J8gQJEI5H08cFDW6m1nXRpG6QEyclbIT3SzqD1MS/pub"
+    },
+    {
+        "source": "Google Slides",
+        "url": "https://docs.google.com/presentation/d/e/2PACX-1vQ3rsCWkulDES2YgcuXvTy36o2n6NDu0nNzbV_YQ3Rpc1fM_BdTyWTEEfzlwdwWPtyrXFvXNsEnAso3/pub?start=true&loop=true&delayms=3000"
+    },
+    {
+        "source": "Google Sheets",
+        "url": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpbRtN92JWWvv0LRMRW_8hkHuT-I-UKMNzQOUe8vTD-fuJ_5-_ImcrgdB_V9YkrAB0quBR14xvmjLt/pubhtml"
+    },
+    {
+        "source": "Google Forms",
+        "url": "https://docs.google.com/forms/d/e/1FAIpQLSfR8KPBrMpWL3tor4XOeQ1sqT_-O-dQCyW9uDIzBGGr6xpCbA/viewform?embedded=true"
+    },
+    {
+        "source": "Google Maps",
+        "url": "https://www.google.com/maps/place/WPDeveloper/@23.8370908,90.3682914,17z/data=!3m1!4b1!4m5!3m4!1s0x3755c1db6c43cad1:0xc20b691836497f19!8m2!3d23.8370859!4d90.3704801?shorturl=1"
+    },
+    {
+        "source": "Google Drawing",
+        "url": "https://docs.google.com/drawings/d/e/2PACX-1vSlcFvwMSTMup-Zep26SNugijQiv59ELFpg9eBWTRfJkDntgFL6c0zS1m6GYawLb5HH2TtT2E5zGFQL/pub?w=960&h=720"
+    },
+    {
+        "source": "Google Calendar",
+        "url": "https://calendar.google.com/calendar/embed?src=en.bd%23holiday%40group.v.calendar.google.com&ctz=Asia%2FDhaka"
+    },
+    {
+        "source": "YouTube",
+        "url": "https://www.youtube.com/watch?v=5zWTInJqD5k"
+    },
+    {
+        "source": "YouTube Live",
+        "url": "https://www.youtube.com/watch?v=WGBm9X4vLPw"
+    },
+    {
+        "source": "YouTube Channel",
+        "url": "https://www.youtube.com/@BaseeraMedia"
+    },
+    {
+        "source": "YouTube Live (Channel)",
+        "url": "https://www.youtube.com/@SaudiQuranTv/live"
+    },
+    {
+        "source": "Facebook Post",
+        "url": "https://www.facebook.com/photo/?fbid=2430125363903041&set=a.2822758824639691"
+    },
+    {
+        "source": "Facebook Video",
+        "url": "https://www.facebook.com/islammdshariful.sabbir/videos/948152072778319"
+    },
+    {
+        "source": "Instagram",
+        "url": "https://www.instagram.com/p/CL6nrBFBDa8/"
+    },
+    {
+        "source": "Twitter Feed",
+        "url": "https://twitter.com/WPDevTeam/status/1346487409035206657?s=20"
+    },
+    {
+        "source": "Spotify Playlist",
+        "url": "https://open.spotify.com/playlist/5muvrBM7BexwjsDwjOTnkW?si=294f56e6bca845e3"
+    },
+    {
+        "source": "Spotify Album",
+        "url": "https://open.spotify.com/album/10xFwtVNORWs3GDSn8Zlcg?si=RZNq3DKkQRS1YEsXWrCvvw"
+    },
+    {
+        "source": "Spotify Artist",
+        "url": "https://open.spotify.com/artist/1RlnzIazwomBpkg7vHVs2s"
+    },
+    {
+        "source": "Spotify Single",
+        "url": "https://open.spotify.com/track/2Bo1bC4f6YNxXpHtVLO54a?si=5f59867e8266406f"
+    },
+    {
+        "source": "GitHub Gist",
+        "url": "https://gist.github.com/reduanmasud/48cc39efd7a029ae8888e047d9dc2a37"
+    },
+    {
+        "source": "Apple Podcast Playlist",
+        "url": "https://podcasts.apple.com/us/podcast/waveform-the-mkbhd-podcast/id1474429475"
+    },
+    {
+        "source": "Apple Podcast Single",
+        "url": "https://podcasts.apple.com/us/podcast/the-man-behind-wordle/id1474429475?i=1000550774883"
+    },
+    {
+        "source": "Rumble",
+        "url": "https://rumble.com/embed/v6alqqm/?pub=4"
+    },
+    {
+        "source": "Soundcloud",
+        "url": "https://soundcloud.com/user-908929543/thunderstorm-soundslong-recording-relaxing-rain-thunder-sounds-for-sleep-insomnia-or-study?utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing"
+    },
+    {
+        "source": "Dailymotion",
+        "url": "https://dai.ly/x8odzbr"
+    },
+    {
+        "source": "Flickr",
+        "url": "https://flic.kr/p/2kAayUY"
+    },
+    {
+        "source": "Vimeo",
+        "url": "https://vimeo.com/4821640"
+    },
+    {
+        "source": "Afreecatv",
+        "url": "https://vod.afreecatv.com/player/84323557"
+    },
+    {
+        "source": "Slideshare",
+        "url": "https://www.slideshare.net/DataReportal/digital-2020-global-digital-overview-january-2020-v01-226017535"
+    },
+    {
+        "source": "Giphy",
+        "url": "https://media.giphy.com/media/xBAreNGk5DapO/giphy.gif"
+    },
+    {
+        "source": "Gumroad",
+        "url": "https://bagratrip.gumroad.com/l/guide-vins-georgie-2023?layout=discover&recommended_by=staff_picks"
+    },
+    {
+        "source": "Meetup",
+        "url": "https://www.meetup.com/the-writer-blockchain/events/287623282/"
+    },
+    {
+        "source": "Meetup Delete Event",
+        "url": "https://www.meetup.com/dhaka-learn-ielts-earn-a-dollar-intern-abroad-with-e2d/events/276232387"
+    },
+    {
+        "source": "Twitch",
+        "url": "https://www.twitch.tv/sinatraa"
+    },
+    {
+        "source": "Smugmug",
+        "url": "https://mdhasan.smugmug.com/Tinified/i-Lqv2Wbp/A"
+    },
+    {
+        "source": "Getty Images",
+        "url": "https://www.gettyimages.com/detail/photo/bouquet-of-flowering-decorative-onions-in-a-vase-royalty-free-image/1408580539"
+    },
+    {
+        "source": "OpenSea Collection",
+        "url": "https://opensea.io/collection/bored-y00ts-ac"
+    },
+    {
+        "source": "OpenSea Single",
+        "url": "https://opensea.io/assets/ethereum/0x5802c586f657c787902280ac091d81832d7faf84/2978"
+    },
+    {
+        "source": "Matterport",
+        "url": "https://my.matterport.com/show/?m=MMjMGk5D3j2"
+    },
+    {
+        "source": "Padlet",
+        "url": "https://padlet.com/mdnahidhasan1/canvas-fgf2c4wmhrj41v6b"
+    },
+    {
+        "source": "Streamable",
+        "url": "https://streamable.com/susppe"
+    },
+    {
+        "source": "CodeSandbox",
+        "url": "https://codesandbox.io/embed/ygz3rr?view=preview&module=%2Findex.html&hidenavigation=1&expanddevtools=1"
+    },
+    {
+        "source": "Gyazo",
+        "url": "https://gyazo.com/457d05a6b6e7b05589ec779739b97140"
+    },
+    {
+        "source": "iFixit",
+        "url": "https://www.ifixit.com/Guide/iPad+Pro+10.5-Inch+Screen+Replacement/122139"
+    },
+    {
+        "source": "Gloria TV",
+        "url": "https://gloria.tv/post/4viynz3SvQmk4De92YpmBUnAe"
+    },
+    {
+        "source": "Boomplay Playlist",
+        "url": "https://www.boomplay.com/playlists/14222498"
+    },
+    {
+        "source": "Boomplay Album",
+        "url": "https://www.boomplay.com/albums/42629740?from=artists"
+    },
+    {
+        "source": "Boomplay Single",
+        "url": "https://www.boomplay.com/songs/85985069"
+    },
+    {
+        "source": "TED",
+        "url": "https://www.ted.com/talks/carole_cadwalladr_this_is_what_a_digital_coup_looks_like"
+    },
+    {
+        "source": "ActBlue",
+        "url": "https://secure.actblue.com/donate/muslim-american-leadership-alliance-1"
+    },
+    {
+        "source": "MixCloud",
+        "url": "https://www.mixcloud.com/DjHunnyBee/villain-iv-halloween/"
+    },
+    {
+        "source": "Audiomack",
+        "url": "https://audiomack.com/islamiclibrary/album/complete-quran-part-2-suras-71-114"
+    },
+    {
+        "source": "Coub",
+        "url": "https://coub.com/view/87md0"
+    },
+    {
+        "source": "SpeakerDeck",
+        "url": "https://speakerdeck.com/smashingmag/the-invisible-side-of-design"
+    },
+    {
+        "source": "Reverbnation Song",
+        "url": "https://www.reverbnation.com/quran12/song/18797294-022-el-hajmp3"
+    },
+    {
+        "source": "Reverbnation Collection",
+        "url": "https://www.reverbnation.com/collection/1015-our-top-tracks-of-the-week"
+    },
+    {
+        "source": "Wistia",
+        "url": "https://forusualtest.wistia.com/medias/kjgpmu64ul"
+    },
+    {
+        "source": "Vidyard",
+        "url": "https://share.vidyard.com/watch/jTjHc4dsR1boHPcouxx7Zc"
+    },
+    {
+        "source": "LearningApps",
+        "url": "https://learningapps.org/13871796"
+    },
+    {
+        "source": "LottieFiles",
+        "url": null
+    },
+    {
+        "source": "iHeartRadio",
+        "url": "https://www.iheart.com/podcast/105-stuff-you-should-know-26940277/episode/short-stuff-how-california-got-its-77450421/"
+    },
+    {
+        "source": "Hearthis",
+        "url": "https://hearthis.at/zrck9mnv/breakfast-with-samsie-on-jfsr-friday-9525-another-2-hour-disco-special-requested-by-the-listeners/"
+    },
+    {
+        "source": "Flourish",
+        "url": "https://public.flourish.studio/story/3176617/"
+    },
+    {
+        "source": "NRK Radio",
+        "url": "https://radio.nrk.no/podkast/brenner_deler_dikt"
+    },
+    {
+        "source": "Archivos",
+        "url": "https://www.archivos.digital/app/view/728/map"
+    },
+    {
+        "source": "Animoto",
+        "url": "https://animoto.com/play/c9R1xmMV6mjZkYXunOaPCQ"
+    },
+    {
+        "source": "Audioboom",
+        "url": "https://audioboom.com/posts/7588430-quranic-gems-with-sh-shahid-ali-episode-4"
+    },
+    {
+        "source": "Fader",
+        "url": "https://www.thefader.com/"
+    },
+    {
+        "source": "SocialExplorer",
+        "url": "https://www.socialexplorer.com/3db1f7d2b6/view"
+    },
+    {
+        "source": "23hq",
+        "url": "https://23hq.com/frstgr/photo/109136164"
+    },
+    {
+        "source": "Cloudup",
+        "url": "https://cloudup.com/imCVSRtHo74"
+    },
+    {
+        "source": "Apester",
+        "url": "https://preview.apester.com/media/639ea833a2ff28002ac134f3?src=link"
+    },
+    {
+        "source": "Adilo",
+        "url": "https://adilo.bigcommand.com/watch/TJHFs7Ov"
+    },
+    {
+        "source": "Byzart",
+        "url": "https://byzart.eu/"
+    },
+    {
+        "source": "CIGeography",
+        "url": "https://www.cigeography.com/"
+    },
+    {
+        "source": "AnnieMusic",
+        "url": "https://anniemusic.app/t/5179"
+    },
+    {
+        "source": "AudioClip",
+        "url": "https://audioclip.naver.com/channels/2108/clips/37"
+    },
+    {
+        "source": "BeautifulAI",
+        "url": "https://www.beautiful.ai/player/-NLK2_NEBsfLN2OUHTgu"
+    },
+    {
+        "source": "Sway",
+        "url": "https://sway.office.com/universe_cheatsheet?ref=Link&loc=play"
+    },
+    {
+        "source": "UniversitePantheonSorbonne",
+        "url": "https://mediatheque.univ-paris1.fr/video/3325-une-communaute-au-service-des-savoirs/"
+    },
+    {
+        "source": "Tumblr",
+        "url": "https://www.tumblr.com/nahidwpd/776625642819256320/test-tumblr?source=share"
+    },
+    {
+        "source": "Acast",
+        "url": "https://shows.acast.com/67572068d59c6635eea1c5fc/68d56f41acc34956e6eb2c75"
+    },
+    {
+        "source": "Audiocom",
+        "url": "https://audio.com/firedies/audio/lightbath"
+    },
+    {
+        "source": "Audiomeans",
+        "url": "https://smartlinks.audiomeans.fr/l/le-pouvoir-du-podcast-e2f20c22"
+    },
+    {
+        "source": "Adilo (New)",
+        "url": "https://adilo.bigcommand.com/watch/vAIefnpj"
+    },
+    {
+        "source": "BlueskySocial",
+        "url": "https://bsky.app/profile/giamonroe.bsky.social/post/3lwmb73llwk2o"
+    },
+    {
+        "source": "Behance",
+        "url": "https://www.behance.net/gallery/203936377/Guitar-To-Go"
+    },
+    {
+        "source": "Audiocom (New)",
+        "url": "https://audio.com/decibelphantomx/audio/lady-summoning-her-canine"
+    },
+    {
+        "source": "PeerTubeTV",
+        "url": "https://tilvids.com/w/fiBg6ecSimU2wfvqG1xMrL"
+    },
+    {
+        "source": "Pitchhub",
+        "url": "https://player.pitchhub.com/en/public/player/296599c9ff2a945eb33d403929e92f35"
+    },
+    {
+        "source": "VidMount",
+        "url": "https://vidmount.com/watch/1618d49e51edac"
+    },
+    {
+        "source": "Videfit",
+        "url": "https://videfit.com/videos/114"
+    },
+    {
+        "source": "Spotlightr",
+        "url": "https://videos.cdn.spotlightr.com/watch/MTkxMTYxMg=="
+    }
+]
