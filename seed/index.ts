@@ -82,7 +82,7 @@ INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES
 function emitElementor(id: number, source: Source): string {
   const slug = pageSlug('elementor', source.source);
   const title = pageTitle('elementor', source.source);
-  const elementorData = buildElementorData(source.url!);
+  const elementorData = buildElementorData(source.url!, source.source);
   return `
 -- ${source.source} (Elementor)
 INSERT INTO wp_posts

@@ -454,3 +454,22 @@ Seed all `seed.sql` pages, then implement:
 ---
 
 *Last updated: 2026-04-15 | EmbedPress Free 4.5.0 + Pro 3.8.7*
+
+---
+
+## Appendix C — Known Test Infrastructure Limitations
+
+These are pre-existing infrastructure issues surfaced while dry-running the
+`add-source-test` skill on YouTube (2026-05-07). They affect any spec generated
+by the skill (or written by hand using the same helpers). Mirrored from
+`.claude/skills/add-source-test/SKILL.md` so the planning reference reflects
+the real state of the harness.
+
+| # | Area | Symptom | Right fix (deferred) | Current workaround |
+|---|---|---|---|---|
+| 1 | `helpers/wp-admin.ts:insertBlock` | WP 6.x command palette overlay (`commands-command-menu__overlay`) intermittently blocks the inserter button click after the title is filled or after a result is clicked. | Rewrite `insertBlock` to use slash-command insertion: click into the canvas, type `/<blockName>`, press Enter on the matching `[role="option"]`. Sidesteps the inserter button entirely. | Helper already drops the cosmetic close-inserter step and uses `getByRole('option', { name, exact: true })`. Re-run the spec once before declaring it broken. |
+| 2 | `tests/elementor/<slug>.spec.ts` widget click | After `frameLocator.click` on `.elementor-widget-embedpres_elementor`, Elementor's outer panel still shows page-level settings — source-specific controls never render. | Drive selection through Elementor's JS API: `$e.run('panel/editor/open', { model: widget.model, view: widget })` against `elementor.documents.getCurrent()`. | Mark Pro-control specs `test.fixme()` with an inline note pointing back here. |
+| 3 | `seed/index.ts` partial-seed | `npm run seed -- --source X` after a full seed fails with `Duplicate entry '1000' for key 'wp_posts.PRIMARY'` — DELETE-by-slug clears the named source's pages, but INSERT counter restarts at `SEED_ID_START` where another source's page already lives. | Make IDs deterministic per (source, editor): `id = SEED_ID_START + sourceIndex * 2 + editorOffset`. Then DELETE-by-slug alone is enough — partial re-seed always overwrites the same rows. | Run `npm run seed` (no flag) for a full re-seed. Slow (~184 rows) but safe. |
+| 4 | Skill smoke step (`SKILL.md` step 6) | `npm run seed` succeeds at SQL generation but MySQL pipe fails with `Table 'wordpress.wp_postmeta' doesn't exist` — WP core not installed (or volume reset since last `npm run setup`). | Add `wp core is-installed` precondition to `scripts/seed-pages.sh` that aborts with a clear "run `npm run setup` first" message. | Run `npm run setup` and try again. |
+
+Tracking: when one of these is fixed, remove its row here **and** the corresponding entry in `.claude/skills/add-source-test/SKILL.md` so the two stay in sync.

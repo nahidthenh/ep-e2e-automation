@@ -251,3 +251,77 @@ After running, summarise in ≤ 5 lines:
 3. Controls covered: list 3–5
 4. Smoke result: passed / failed (count)
 5. Anything the user must do next (e.g. "Pro plugin path missing — controls inferred from public docs")
+
+---
+
+## Known limitations (carried over from the YouTube dry-run, 2026-05-07)
+
+These are pre-existing infrastructure issues, not bugs in this skill. Generated specs may hit them and fail in ways that look like spec problems but aren't. Read this list before debugging a "why doesn't my new spec pass" question.
+
+### 1. WP 6.x command palette intermittently blocks the Gutenberg inserter
+
+**Symptom:** `insertBlock` fails with `<div class="components-modal__screen-overlay commands-command-menu__overlay">…</div> intercepts pointer events`. The `dismissWelcomeModal` Escape loop closes the palette, but it re-opens after subsequent clicks (especially after the title is set or after the inserter result is clicked).
+
+**Diagnosis path:**
+- Look at the failure screenshot — is there a Ctrl+K palette overlay on top?
+- Run the spec headed (`npx playwright test … --headed`) to see the timing.
+
+**Right fix (deferred):** rewrite `insertBlock` to use **slash-command insertion** instead of the inserter button:
+```ts
+// Click into editor canvas → type `/<blockName>` → Enter
+const canvas = page.locator('.block-editor-block-list__layout').first();
+await canvas.click();
+await page.keyboard.type(`/${blockName}`);
+await page.locator(`[role="option"]:has-text("${blockName}")`).first().click();
+```
+This avoids the inserter button (and therefore the palette races) entirely.
+
+**Workaround until that lands:** the helper currently drops the close-inserter step and uses `getByRole('option', { name, exact: true })`. Specs may still fail intermittently — re-run once before assuming the spec is broken.
+
+### 2. Elementor widget selection via `frameLocator.click` doesn't switch the panel
+
+**Symptom:** test successfully clicks `.elementor-widget-embedpres_elementor` inside the preview iframe, but the outer Elementor panel still shows page-level settings, not the widget's controls. Subsequent waits on `.elementor-control-<id>` time out.
+
+**Diagnosis path:**
+- After the iframe click, dump the panel state: `await page.locator('#elementor-panel-inner').textContent()` — does it mention the widget?
+- Try a real-browser click via `page.evaluate` on the iframe document to see if the underlying event isn't propagating.
+
+**Right fix (deferred):** drive selection through Elementor's JS API in the parent window:
+```ts
+await page.evaluate(() => {
+  const doc = (window as any).elementor.documents.getCurrent();
+  const widget = doc.container.children[0].children[0].children[0];
+  (window as any).$e.run('panel/editor/open', { model: widget.model, view: widget });
+});
+```
+That goes directly through Elementor's command bus instead of relying on click event simulation.
+
+**Workaround until that lands:** for sources with Pro controls, mark the spec `test.fixme()` and document the reason inline.
+
+### 3. Partial-seed ID collision after a full seed has run
+
+**Symptom:** `npm run seed -- --source <name>` fails with `ERROR 1062 (23000) … Duplicate entry '1000' for key 'wp_posts.PRIMARY'` if a full seed already ran. The DELETE clause removes the named source's pages by slug, but the INSERT counter restarts at `SEED_ID_START` (1000), where another source's page still lives.
+
+**Right fix (deferred):** make IDs deterministic per (source, editor) pair instead of sequential:
+```ts
+// in seed/index.ts
+const sourceIndex = allSourcesWithUrl.findIndex((x) => x.source === s.source);
+const id = SEED_ID_START + sourceIndex * 2 + (editor === 'gutenberg' ? 0 : 1);
+```
+With deterministic IDs, partial re-seed always overwrites the same rows the full seed assigned, so DELETE-by-slug is enough.
+
+**Workaround:** when re-seeding a single source after a full seed, run `npm run seed` (no flag) to refresh everything. Slow but safe.
+
+### 4. WP setup must precede the skill's smoke step
+
+**Symptom:** `npm run seed` succeeds at SQL generation but the MySQL pipe fails with `Table 'wordpress.wp_postmeta' doesn't exist`.
+
+**Cause:** WordPress core wasn't installed (or the volume was reset since the last `npm run setup`).
+
+**Right fix (deferred):** add a precondition probe to step 6:
+```bash
+docker exec ep_e2e_wp wp core is-installed --path=/var/www/html --allow-root \
+  || { echo "WP not installed — run 'npm run setup' first"; exit 1; }
+```
+
+**Workaround:** if seeding fails with a missing-table error, run `npm run setup` and try again.

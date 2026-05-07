@@ -89,6 +89,16 @@ async function suppressStarterPatternPrompt(page: Page): Promise<void> {
  * Must be called AFTER waitForGutenbergReady() so React has already rendered.
  */
 async function dismissWelcomeModal(page: Page): Promise<void> {
+  // Generic catch-all: any visible Gutenberg modal overlay (command palette,
+  // pattern picker, welcome guide, etc.) intercepts clicks on the inserter
+  // / publish button. Press Escape up to 3 times until no overlay remains.
+  const anyOverlay = page.locator('.components-modal__screen-overlay').first();
+  for (let i = 0; i < 3; i++) {
+    if (!(await anyOverlay.isVisible({ timeout: 500 }).catch(() => false))) break;
+    await page.keyboard.press('Escape');
+    await anyOverlay.waitFor({ state: 'hidden', timeout: 3_000 }).catch(() => {});
+  }
+
   // "Choose a pattern" dialog (WP 6.9+)
   const patternDialog = page.locator(
     '[aria-label="Choose a pattern"], div[role="dialog"]:has(h1:text("Choose a pattern"))'
@@ -132,13 +142,22 @@ async function dismissWelcomeModal(page: Page): Promise<void> {
  * Works with both WP ≤ 6.8 (canvas iframe) and WP 6.9+ (outer document).
  */
 export async function setGutenbergTitle(page: Page, title: string): Promise<void> {
+  // Order matters: try the editable input/contenteditable first. In WP 6.9+
+  // there's also a button in the document tools toolbar that *displays*
+  // the title and opens the command palette on click — `[aria-label="Add title"]`
+  // can match it. We must click the actual editable surface, not that button.
   const titleInput = (await editorLocator(
     page,
-    '[aria-label="Add title"], .editor-post-title__input, h1[contenteditable="true"]'
+    '.editor-post-title__input, ' +
+      'h1.wp-block-post-title[contenteditable="true"], ' +
+      'h1[contenteditable="true"][aria-label="Add title"], ' +
+      '[aria-label="Add title"]:not(button)',
   )).first();
   await expect(titleInput).toBeVisible({ timeout: 20_000 });
   await titleInput.click();
   await titleInput.fill(title);
+  // Defocus so the command-palette trigger button can't auto-open later.
+  await titleInput.blur().catch(() => {});
 }
 
 /**
@@ -149,11 +168,25 @@ export async function insertBlock(page: Page, blockName: string): Promise<void> 
   // Ensure no modal is blocking the editor before we open the inserter
   await dismissWelcomeModal(page);
 
+  // Click into the editor canvas so focus isn't on a toolbar button that
+  // could auto-open the command palette / a popover.
+  const canvas = page.locator(
+    '.block-editor-block-list__layout, .editor-styles-wrapper',
+  ).first();
+  await canvas.click({ position: { x: 10, y: 10 } }).catch(() => {});
+
+  // One more dismissal pass in case the click into the canvas surfaced a popover.
+  await dismissWelcomeModal(page);
+
   // Open inserter
   const inserterBtn = page.locator(
-    'button[aria-label="Toggle block inserter"], button[aria-label="Block Inserter"]'
-  );
-  await inserterBtn.click();
+    'button[aria-label="Toggle block inserter"], button[aria-label="Block Inserter"]',
+  ).first();
+  // Skip if the inserter is already open (avoids the close-then-reopen toggle race).
+  const alreadyOpen = (await inserterBtn.getAttribute('aria-expanded')) === 'true';
+  if (!alreadyOpen) {
+    await inserterBtn.click();
+  }
 
   // Search
   const searchInput = page.locator(
@@ -161,12 +194,17 @@ export async function insertBlock(page: Page, blockName: string): Promise<void> 
   ).first();
   await searchInput.fill(blockName);
 
-  // Click the first matching result
-  const result = page.locator(
-    `.block-editor-block-types-list__item[aria-label*="${blockName}"],` +
-    `.editor-block-list-item-${blockName.toLowerCase().replace(/\s/g, '-')},` +
-    `.components-button:has-text("${blockName}")`
-  ).first();
+  // Click the matching result. Prefer ARIA `option` with exact name so that
+  // searching "YouTube" picks EmbedPress's "YouTube" block and not
+  // "YouTube Embed" (WP core's generic block, which appears alongside).
+  let result = page.getByRole('option', { name: blockName, exact: true }).first();
+  if ((await result.count()) === 0) {
+    // Fallback for older WP block-editor markup.
+    result = page.locator(
+      `[role="option"]:has-text("${blockName}"), ` +
+      `.block-editor-block-types-list__item[aria-label="${blockName}"]`,
+    ).first();
+  }
   await expect(result).toBeVisible({ timeout: 10_000 });
 
   // Ensure no modal overlay is intercepting clicks before we proceed
@@ -174,10 +212,9 @@ export async function insertBlock(page: Page, blockName: string): Promise<void> 
 
   await result.click();
 
-  // Close inserter if still open
-  if (await inserterBtn.getAttribute('aria-expanded') === 'true') {
-    await inserterBtn.click();
-  }
+  // Don't try to close the inserter here — the command palette overlay
+  // (WP 6.x) frequently re-appears post-insert and blocks the toggle click.
+  // Leaving the inserter open has no functional effect on subsequent steps.
 }
 
 // ─── Classic Editor helpers ────────────────────────────────────────────────

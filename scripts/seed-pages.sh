@@ -13,9 +13,15 @@
 #   bash scripts/seed-pages.sh --source YouTube --editor elementor
 set -euo pipefail
 
-# Load .env so docker-compose values match what containers were started with
+# Load only the DB vars we actually need from .env, line by line. Avoids
+# `source .env` choking on unquoted values that contain spaces (e.g.
+# WP_TITLE=EmbedPress E2E).
 if [ -f .env ]; then
-  set -a; source .env; set +a
+  for key in MYSQL_USER MYSQL_PASSWORD MYSQL_DATABASE; do
+    val="$(grep -E "^${key}=" .env | head -n1 | cut -d= -f2- \
+            | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+    [ -n "$val" ] && export "${key}=${val}"
+  done
 fi
 
 MYSQL_USER="${MYSQL_USER:-wpuser}"
