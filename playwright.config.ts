@@ -18,7 +18,7 @@ if (slackEnabled) {
       slackOAuthToken: process.env.SLACK_BOT_TOKEN,
       channels:        [process.env.SLACK_CHANNEL_ID!],
       sendResults:     process.env.SLACK_SEND_RESULTS ?? 'always', // 'always' | 'on-failure' | 'off'
-      maxNumberOfFailuresToShow: 10,
+      maxNumberOfFailuresToShow: 0,
       meta: [
         { key: 'Run',    value: process.env.CI ? 'GitHub Actions' : 'Local' },
         {
