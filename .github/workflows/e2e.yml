@@ -181,6 +181,13 @@ jobs:
           # WP_URL / WP_ADMIN_* inherit from workflow-level env automatically.
           SLACK_BOT_TOKEN:  ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+          # Predictable GitHub Pages project URL — same on every run since
+          # deploy-pages overwrites the previous deploy. Rendered as a clickable
+          # link in the Slack reporter's `meta` block. The Pages URL serves
+          # whatever was published by the *previous* run when this Slack
+          # message is posted (the current run's report deploys after this
+          # step), but most users see it after the deploy completes anyway.
+          PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
 
       # ── Artifacts ────────────────────────────────────────────────────────────
       # `if: always()` (not `if: failure()`) because continue-on-error on the
