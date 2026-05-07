@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
-    "test:gutenberg": "playwright test tests/gutenberg",
-    "test:elementor": "playwright test tests/elementor",
+    "test:smoke": "playwright test --project=smoke",
+    "test:gutenberg": "playwright test --project=gutenberg",
+    "test:elementor": "playwright test --project=elementor",
     "test:report": "playwright show-report",
     "setup": "bash scripts/setup-wp.sh",
     "wait": "bash scripts/wait-for-wp.sh",

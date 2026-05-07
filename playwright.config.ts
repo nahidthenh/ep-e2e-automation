@@ -48,10 +48,29 @@ export default defineConfig({
     navigationTimeout: 30_000,
   },
 
+  // Three projects with explicit ordering:
+  //   smoke     → runs first; verifies plugins are installed & active
+  //   gutenberg → depends on smoke; skipped if smoke fails
+  //   elementor → depends on smoke; skipped if smoke fails
+  // `--project=<name>` runs that project plus its dependencies, so
+  // `playwright test --project=gutenberg` still runs smoke first.
   projects: [
     {
-      name: 'chromium',
+      name: 'smoke',
+      testDir: './tests/smoke',
       use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'gutenberg',
+      testDir: './tests/gutenberg',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['smoke'],
+    },
+    {
+      name: 'elementor',
+      testDir: './tests/elementor',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['smoke'],
     },
   ],
 });
