@@ -95,6 +95,13 @@ jobs:
       # both in order and skip any that aren't applicable. `npm run build
       # --if-present` is a no-op when no build script exists.
       - name: Build EmbedPress plugins
+        env:
+          # EmbedPress's composer.json references private GitHub VCS repos
+          # (e.g. priyomukul/wp-notice). COMPOSER_AUTH lets Composer clone
+          # them with the same PAT we used to check out the plugin sources.
+          # The PAT must have read access to every private repo Composer
+          # tries to fetch, not just the two plugin repos.
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ secrets.PLUGIN_REPO_TOKEN }}"}}'
         run: |
           set -euo pipefail
           for dir in .plugin-src/embedpress .plugin-src/embedpress-pro; do
