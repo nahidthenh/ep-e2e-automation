@@ -1,5 +1,6 @@
 import { defineConfig, devices, ReporterDescription } from '@playwright/test';
 import 'dotenv/config';
+import * as dotenv from "dotenv"
 
 // Enable the Slack reporter only when both vars are set, so local runs without
 // Slack creds (or partially-configured CI runs) don't crash on missing config.

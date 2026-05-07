@@ -181,6 +181,10 @@ jobs:
       - name: Run Playwright tests
         # No --reporter override — let playwright.config.ts decide so the
         # Slack reporter is included automatically when SLACK_* secrets are set.
+        # continue-on-error: failing tests won't abort the job, so the report
+        # still uploads and publishes to Pages. Note: the job will be marked
+        # green even on test failures — check the report or Slack for status.
+        continue-on-error: true
         run: npx playwright test
         env:
           WP_URL:           ${{ env.WP_URL }}
