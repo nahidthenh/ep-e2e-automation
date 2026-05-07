@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Seeds EmbedPress test pages into the running WordPress container.
+#
+# For every source in sources.json with a non-null URL, creates one Gutenberg
+# page and one Elementor page containing an EmbedPress block/widget pointing
+# at that URL. Re-runs are idempotent: previously-seeded pages are wiped
+# before insertion.
+#
+# Usage:
+#   bash scripts/seed-pages.sh                          # everything
+#   bash scripts/seed-pages.sh --source YouTube         # one source, both editors
+#   bash scripts/seed-pages.sh --editor gutenberg       # all sources, Gutenberg only
+#   bash scripts/seed-pages.sh --source YouTube --editor elementor
+set -euo pipefail
+
+# Load .env so docker-compose values match what containers were started with
+if [ -f .env ]; then
+  set -a; source .env; set +a
+fi
+
+MYSQL_USER="${MYSQL_USER:-wpuser}"
+MYSQL_PASS="${MYSQL_PASSWORD:-wppass}"
+MYSQL_DB="${MYSQL_DATABASE:-wordpress}"
+DB_CONTAINER="${DB_CONTAINER:-ep_e2e_db}"
+WP_CONTAINER="${WP_CONTAINER:-ep_e2e_wp}"
+
+# Generate SQL → pipe into MySQL inside the DB container
+npx tsx seed/index.ts "$@" \
+  | docker exec -i "$DB_CONTAINER" \
+      mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB"
+
+# WordPress caches permalinks aggressively; flush so new slugs resolve.
+docker exec "$WP_CONTAINER" wp rewrite flush --path=/var/www/html --allow-root >/dev/null 2>&1 || true
+
+echo "✓ Seed pages applied."

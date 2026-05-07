@@ -110,10 +110,8 @@ wp_cli option update classic-editor-allow-users allow
 echo "━━━ Running WordPress DB upgrade (if needed) ━━━"
 wp_cli core update-db
 
-echo "━━━ Importing seed data ━━━"
-docker exec -i "$DB_CONTAINER" \
-  mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB" \
-  < seed/seed.sql
+echo "━━━ Seeding test pages from sources.json ━━━"
+bash scripts/seed-pages.sh
 
 echo "━━━ Flushing rewrite rules ━━━"
 wp_cli rewrite flush

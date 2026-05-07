@@ -160,11 +160,8 @@ jobs:
           docker exec ep_e2e_wp wp rewrite flush \
             --path=/var/www/html --allow-root
 
-      - name: Import seed data
-        run: |
-          docker exec -i ep_e2e_db \
-            mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" \
-            < seed/seed.sql
+      - name: Seed test pages from sources.json
+        run: bash scripts/seed-pages.sh
 
       # ── Playwright tests ─────────────────────────────────────────────────────
       - name: Run Playwright tests

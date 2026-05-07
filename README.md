@@ -20,20 +20,25 @@ Playwright + Docker regression tests for the EmbedPress WordPress plugin.
 ├── Dockerfile                 # WordPress 6.4 + WP-CLI
 ├── docker-compose.yml         # WordPress + MySQL services
 ├── .env.example               # Copy to .env and customise
+├── sources.json               # source name + URL pairs driving seeded pages
 ├── scripts/
-│   ├── setup-wp.sh            # One-shot local setup helper
+│   ├── setup-wp.sh            # One-shot local setup (WP install + plugins + seed)
+│   ├── seed-pages.sh          # Generates and applies seed SQL into the DB
 │   └── wait-for-wp.sh         # Polls until WP responds HTTP 200
 ├── seed/
-│   └── seed.sql               # Pre-created test pages (imported after WP install)
+│   ├── index.ts               # Seed SQL generator (reads sources.json)
+│   ├── sources.ts             # Source loader, slug + title helpers
+│   └── editors/
+│       ├── gutenberg.ts       # Builds <!-- wp:embedpress/embedpress --> markup
+│       └── elementor.ts       # Builds _elementor_data JSON (embedpres widget)
 ├── playwright.config.ts
 ├── helpers/
 │   ├── auth.ts                # loginAsAdmin()
 │   ├── wp-admin.ts            # Editor navigation + publish helpers
 │   └── page-utils.ts          # Embed verification + Elementor helpers
 └── tests/
-    ├── gutenberg.spec.ts
-    ├── classic-editor.spec.ts
-    └── elementor.spec.ts
+    ├── gutenberg/             # Gutenberg specs (one per source — added via skill)
+    └── elementor/             # Elementor specs (one per source — added via skill)
 ```
 
 ---
@@ -95,7 +100,6 @@ npm test
 
 # Single suite
 npm run test:gutenberg
-npm run test:classic
 npm run test:elementor
 
 # With headed browser (useful when writing new tests)
@@ -109,21 +113,34 @@ npm run test:report
 
 ## Seed data
 
-`seed/seed.sql` is imported **after** `wp core install` and creates three
-pages using fixed IDs (100–102) to avoid collisions with WordPress defaults.
+Pages are seeded dynamically from `sources.json`. For every source whose
+`url` is non-null, `scripts/seed-pages.sh` creates two pages:
 
-| ID | Slug | Editor |
+| Editor | Slug pattern | Title pattern |
 |---|---|---|
-| 100 | `ep-gutenberg-youtube-test` | Gutenberg — EmbedPress block |
-| 101 | `ep-classic-youtube-test` | Classic Editor — shortcode |
-| 102 | `ep-elementor-youtube-test` | Elementor — EmbedPress widget |
+| Gutenberg | `ep-gutenberg-{source-slug}` | `EP Gutenberg — {Source Name}` |
+| Elementor | `ep-elementor-{source-slug}` | `EP Elementor — {Source Name}` |
 
-To re-import a fresh copy at any time:
+Page IDs start at 1000 and increment per source — well above WordPress
+defaults to avoid collisions.
 
 ```bash
-docker exec -i ep_e2e_db \
-  mysql -uwpuser -pwppass wordpress < seed/seed.sql
+# Seed everything (all sources, both editors)
+npm run seed
+
+# Just one source
+bash scripts/seed-pages.sh --source YouTube
+
+# Just one editor
+npm run seed:gutenberg
+npm run seed:elementor
+
+# Pinpoint a single page
+bash scripts/seed-pages.sh --source YouTube --editor elementor
 ```
+
+Re-runs are idempotent — existing pages with matching slugs are deleted
+before being re-inserted.
 
 ---
 
@@ -146,7 +163,7 @@ The workflow in `.github/workflows/e2e.yml`:
 1. Builds the Docker image and starts services.
 2. Polls `wait-for-wp.sh` until WordPress answers HTTP 200.
 3. Runs WP-CLI to install core, activate plugins, set pretty permalinks.
-4. Imports `seed/seed.sql`.
+4. Runs `scripts/seed-pages.sh` to seed pages from `sources.json`.
 5. Runs `npx playwright test`.
 6. Uploads the HTML report and failure artifacts on every run.
 
