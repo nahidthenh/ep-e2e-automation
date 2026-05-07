@@ -21,7 +21,12 @@ if (slackEnabled) {
       maxNumberOfFailuresToShow: 10,
       meta: [
         { key: 'Run',    value: process.env.CI ? 'GitHub Actions' : 'Local' },
-        { key: 'Branch', value: process.env.GITHUB_REF_NAME ?? 'local' },
+        {
+          key: ":embedpress: E2E Automation - Test Results",
+          value: process.env.PAGES_URL
+            ? `🖥️ <${process.env.PAGES_URL}|View Results!>`
+            : "Local run",
+        }
       ],
     },
   ]);
