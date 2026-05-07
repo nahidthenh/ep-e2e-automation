@@ -1,4 +1,7 @@
-FROM wordpress:6.4-php8.2-apache
+# Tracks the latest WordPress release on PHP 8.3 + Apache.
+# (Use a pinned tag like `wordpress:6.9-php8.3-apache` if you need a fixed
+# WP version for a specific test run.)
+FROM wordpress:php8.3-apache
 
 RUN apt-get update && apt-get install -y \
     less \

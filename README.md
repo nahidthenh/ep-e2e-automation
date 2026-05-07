@@ -17,7 +17,7 @@ Playwright + Docker regression tests for the EmbedPress WordPress plugin.
 
 ```
 .
-├── Dockerfile                 # WordPress 6.4 + WP-CLI
+├── Dockerfile                 # Latest WordPress on PHP 8.3 + WP-CLI
 ├── docker-compose.yml         # WordPress + MySQL services
 ├── .env.example               # Copy to .env and customise
 ├── sources.json               # source name + URL pairs driving seeded pages
