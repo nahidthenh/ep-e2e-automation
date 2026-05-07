@@ -12,11 +12,6 @@ on:
         required: false
         default: master
 
-# Serialise GitHub Pages deploys so concurrent runs can't race on the same env.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
 env:
   WP_URL:          http://localhost:8080
   WP_PORT:         8080
@@ -183,28 +178,32 @@ jobs:
         continue-on-error: true
         run: npx playwright test
         env:
-          WP_URL:           ${{ env.WP_URL }}
-          WP_ADMIN_USER:    ${{ env.WP_ADMIN_USER }}
-          WP_ADMIN_PASS:    ${{ env.WP_ADMIN_PASS }}
+          # WP_URL / WP_ADMIN_* inherit from workflow-level env automatically.
           SLACK_BOT_TOKEN:  ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
 
       # ── Artifacts ────────────────────────────────────────────────────────────
-      - name: Upload Playwright report
+      # `if: always()` (not `if: failure()`) because continue-on-error on the
+      # test step makes the job appear successful even on test failures.
+      # `if-no-files-found: ignore` handles the case where Playwright crashed
+      # before producing any output.
+      - name: Upload Playwright HTML report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
+          if-no-files-found: ignore
 
-      - name: Upload failure artifacts
-        if: failure()
+      - name: Upload Playwright failure artifacts (videos, traces, screenshots)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts
           path: test-results/
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Stop containers
         if: always()
@@ -218,6 +217,11 @@ jobs:
     needs: e2e
     if: always()
     runs-on: ubuntu-latest
+    # Scoped to this job so concurrent e2e test runs aren't blocked, but
+    # only one Pages deploy ever runs at a time.
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
     permissions:
       pages: write
       id-token: write
@@ -226,10 +230,29 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Download Playwright report artifact
+        id: download
         uses: actions/download-artifact@v4
         with:
           name: playwright-report
           path: report
+        # Don't fail the deploy if e2e crashed before producing a report —
+        # publish a placeholder so the Pages URL stays valid.
+        continue-on-error: true
+
+      - name: Ensure report directory has content
+        run: |
+          mkdir -p report
+          if [ -z "$(ls -A report 2>/dev/null)" ]; then
+            cat > report/index.html <<'EOF'
+          <!doctype html>
+          <html><head><meta charset="utf-8"><title>Playwright Report — unavailable</title></head>
+          <body style="font-family:system-ui;padding:2rem;max-width:40rem;margin:auto">
+            <h1>No Playwright report available</h1>
+            <p>The most recent E2E run did not produce a report. Check the
+            <a href="../actions">workflow runs</a> for details.</p>
+          </body></html>
+          EOF
+          fi
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
