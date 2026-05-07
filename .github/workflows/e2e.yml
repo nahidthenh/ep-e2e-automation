@@ -65,11 +65,11 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Setup PHP + Composer
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: "8.2"
-          tools: composer
+      # No PHP/Composer toolchain: both EmbedPress repos ship their PHP deps
+      # pre-bundled — Free commits `vendor/`, Pro commits the Mozart-composed
+      # `includes/Dependencies/`. Running `composer install` would force CI
+      # to authenticate against private VCS repos (priyomukul/wp-notice,
+      # WPDevelopers/licensing) for no functional benefit.
 
       # ── Install harness dependencies (Playwright etc.) ──────────────────────
       - name: Install npm dependencies
@@ -90,27 +90,16 @@ jobs:
         if: steps.pw-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
-      # ── Build plugins ───────────────────────────────────────────────────────
-      # Each plugin may have composer deps and/or an npm asset build. We try
-      # both in order and skip any that aren't applicable. `npm run build
-      # --if-present` is a no-op when no build script exists.
-      - name: Build EmbedPress plugins
-        env:
-          # EmbedPress's composer.json references private GitHub VCS repos
-          # (e.g. priyomukul/wp-notice). COMPOSER_AUTH lets Composer clone
-          # them with the same PAT we used to check out the plugin sources.
-          # The PAT must have read access to every private repo Composer
-          # tries to fetch, not just the two plugin repos.
-          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ secrets.PLUGIN_REPO_TOKEN }}"}}'
+      # ── Build plugin assets ─────────────────────────────────────────────────
+      # PHP deps are already vendored in the cloned repos — skip composer.
+      # We still run the npm asset build if a build script is present, so
+      # JS/CSS bundles in /assets/ are produced fresh from the cloned source.
+      - name: Build EmbedPress plugin assets
         run: |
           set -euo pipefail
           for dir in .plugin-src/embedpress .plugin-src/embedpress-pro; do
             echo "──────── Building $dir ────────"
             pushd "$dir" > /dev/null
-
-            if [ -f composer.json ]; then
-              composer install --no-dev --optimize-autoloader --no-interaction
-            fi
 
             if [ -f package.json ]; then
               if [ -f package-lock.json ]; then
