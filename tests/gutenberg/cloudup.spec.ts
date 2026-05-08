@@ -1,13 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-const SEEDED_SLUG = 'ep-gutenberg-peertubetv';
-// Gutenberg renders the iframe with the share URL (`tilvids.com/w/<id>`),
-// while Elementor produces the canonical embed URL (`/videos/embed/<id>`).
-// Match either with a generic host selector.
-const IFRAME_SEL  = 'iframe[src*="tilvids.com"]';
-const URL_MARKER  = 'fiBg6ecSimU2wfvqG1xMrL';
+const SEEDED_SLUG = 'ep-gutenberg-cloudup';
+const IFRAME_SEL  = 'iframe[src*="cloudup.com"]';
+const URL_MARKER  = 'imCVSRtHo74';
 
-test.describe('Gutenberg verify — PeerTubeTV', () => {
+test.describe('Gutenberg verify — Cloudup', () => {
   test('seeded page renders the embed', async ({ page }) => {
     const response = await page.goto(`/${SEEDED_SLUG}/`, { waitUntil: 'load' });
     expect(response?.ok(), 'seeded page not found — run `npm run seed`').toBeTruthy();
