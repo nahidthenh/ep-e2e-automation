@@ -18,17 +18,18 @@ Tests are **verification-only**. The seed pipeline (`seed/index.ts`) publishes o
 | --- | --- | --- | --- |
 | YouTube | ✅ | ✅ | iframe present, src contains video id `5zWTInJqD5k`. |
 | Google Docs | ✅ | ✅ | iframe present, src contains doc id `2PACX-1vQBdUB9bU8y9hnIrDv…`. |
+| Google Slides | ✅ | ✅ | iframe present, src on `docs.google.com/presentation`, contains presentation id. |
 
-**2 of 92** sources with a URL in `sources.json` have verification specs.
+**3 of 92** sources with a URL in `sources.json` have verification specs.
 
 ## Not yet covered
 
-### Sources missing both Gutenberg and Elementor verification specs (90)
+### Sources missing both Gutenberg and Elementor verification specs (89)
 
 Grouped by family for planning. Each row needs `tests/gutenberg/<slug>.spec.ts` and `tests/elementor/<slug>.spec.ts`.
 
 **Google suite**
-- Google Slides, Google Sheets, Google Forms, Google Maps, Google Drawing, Google Calendar
+- Google Sheets, Google Forms, Google Maps, Google Drawing, Google Calendar
 
 **YouTube family (sibling sources)**
 - YouTube Live, YouTube Channel, YouTube Live (Channel)
