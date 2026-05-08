@@ -35,6 +35,16 @@ npx tsx seed/index.ts "$@" \
   | docker exec -i "$DB_CONTAINER" \
       mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB"
 
+# Resolve [embedpress] shortcodes in seeded Gutenberg pages and bake the iframe
+# HTML into the embedpress/embedpress block (inner content + `embedHTML`
+# attribute), matching what the editor saves. Required for dynamic providers
+# (Instagram, OpenSea, Wistia, Google Photos) where the block's render callback
+# only honours `embedHTML`; gives every other source authentic block markup too.
+docker cp scripts/resolve-gutenberg-embeds.php "$WP_CONTAINER:/tmp/resolve-gutenberg-embeds.php" >/dev/null
+docker exec "$WP_CONTAINER" wp eval-file /tmp/resolve-gutenberg-embeds.php \
+  --path=/var/www/html --allow-root
+docker exec "$WP_CONTAINER" rm /tmp/resolve-gutenberg-embeds.php >/dev/null 2>&1 || true
+
 # WordPress caches permalinks aggressively; flush so new slugs resolve.
 docker exec "$WP_CONTAINER" wp rewrite flush --path=/var/www/html --allow-root >/dev/null 2>&1 || true
 

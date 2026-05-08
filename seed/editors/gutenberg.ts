@@ -1,19 +1,26 @@
 /**
  * Builds Gutenberg block markup for the seeded page.
  *
- * Why the shortcode wrapper instead of `wp:embedpress/embedpress`:
- * the generic EmbedPress block is save-time-rendered in JS — its render
- * callback (EmbedPressBlockRenderer::render) only returns iframe HTML when
- * `attributes.embedHTML` was populated by the editor at save. Seeded posts
- * skip that step, so the block renders an empty inner div on the front-end.
- * The `[embedpress]URL[/embedpress]` shortcode resolves URL → iframe at
- * request time via Embera/oEmbed, so the seeded page produces a real iframe
- * without ever opening the editor.
+ * Why the `embedpress/embedpress` block with the shortcode as inner HTML:
+ * the block's render callback (`EmbedPressBlockRenderer::render`) only emits
+ * iframe HTML when the editor populated `attributes.embedHTML` at save time
+ * (a JS-only step). Seeded posts skip the editor, so we rely on the block's
+ * early-return path: for non-dynamic providers it returns the inner HTML
+ * verbatim, and the `[embedpress]…[/embedpress]` shortcode resolves to an
+ * iframe in the next `the_content` filter step.
+ *
+ * The post-seed step (`scripts/resolve-gutenberg-embeds.php`) replaces this
+ * scaffolding with the resolved iframe baked into both the block's inner
+ * content and the `embedHTML` attribute, matching exactly what the Gutenberg
+ * editor would have saved. That step also covers dynamic providers (Instagram,
+ * OpenSea, Wistia, Google Photos) where the early-return is bypassed and
+ * `embedHTML` is the only path the render callback honours.
  */
 export function buildGutenbergContent(url: string): string {
+  const attrs = JSON.stringify({ url, href: url });
   return [
-    `<!-- wp:shortcode -->`,
-    `[embedpress]${url}[/embedpress]`,
-    `<!-- /wp:shortcode -->`,
+    `<!-- wp:embedpress/embedpress ${attrs} -->`,
+    `<figure class="wp-block-embedpress-embedpress">[embedpress]${url}[/embedpress]</figure>`,
+    `<!-- /wp:embedpress/embedpress -->`,
   ].join('\n');
 }
