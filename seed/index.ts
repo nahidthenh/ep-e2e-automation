@@ -17,7 +17,12 @@ import { Editor, Source, getSources, pageSlug, pageTitle } from './sources';
 import { buildGutenbergContent } from './editors/gutenberg';
 import { buildElementorData } from './editors/elementor';
 
-const SEED_ID_START = 1000;
+// Start above the range WordPress uses for auto-drafts, wp_navigation,
+// and wp_global_styles so the seeded IDs don't collide with system posts
+// created during normal admin activity. Bumped from 1000 once the YouTube
+// Channel variants pushed the seed range past 1183, which is where WP's
+// system posts started landing in this environment.
+const SEED_ID_START = 10000;
 const ELEMENTOR_VERSION = '3.18.0';
 
 /**
