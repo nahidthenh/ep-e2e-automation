@@ -54,7 +54,24 @@ foreach ($rows as $row) {
         continue;
     }
 
-    $iframe = trim(do_shortcode('[embedpress]' . $url . '[/embedpress]'));
+    // For sources whose render path honours block attributes (YouTube channel
+    // layout/controls, etc.), `do_shortcode` discards them. Calling
+    // `Shortcode::parseContent($url, true, $atts)` directly lets us pass the
+    // block's attrs into the resolution. For URL-only embeds, $atts stays
+    // empty and the result matches `do_shortcode`.
+    $passthrough = ['ytChannelLayout', 'pagesize', 'columns', 'ispagination', 'gapbetweenvideos'];
+    $atts = [];
+    foreach ($passthrough as $key) {
+        if (array_key_exists($key, $attrs)) {
+            $atts[$key] = $attrs[$key];
+        }
+    }
+    $parsed = \EmbedPress\Shortcode::parseContent($url, true, $atts);
+    $iframe = trim($parsed->embed ?? '');
+    if (empty($iframe)) {
+        // Fallback to plain shortcode in case parseContent shape changed.
+        $iframe = trim(do_shortcode('[embedpress]' . $url . '[/embedpress]'));
+    }
     if (empty($iframe)) {
         WP_CLI::warning("Empty resolution for {$row->post_name} (url: {$url}); skipped.");
         $skipped++;
@@ -62,7 +79,10 @@ foreach ($rows as $row) {
     }
 
     $inner = '<figure class="wp-block-embedpress-embedpress">' . $iframe . '</figure>';
-    $blocks[$idx]['attrs'] = ['url' => $url, 'embedHTML' => $iframe];
+    // Preserve layout/control attrs so re-resolves stay deterministic and the
+    // saved post_content matches what the editor would write.
+    $preserved = array_intersect_key($attrs, array_flip($passthrough));
+    $blocks[$idx]['attrs'] = array_merge($preserved, ['url' => $url, 'embedHTML' => $iframe]);
     $blocks[$idx]['innerHTML'] = $inner;
     $blocks[$idx]['innerContent'] = [$inner];
 

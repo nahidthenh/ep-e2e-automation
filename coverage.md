@@ -25,7 +25,7 @@ Tests are **verification-only**. The seed pipeline (`seed/index.ts`) publishes o
 | Google Drawing | ✅ | ✅ | Renders as `<img>` (not iframe), src on `docs.google.com/drawings`, contains drawing id. |
 | Google Calendar | ✅ | ✅ | iframe present, src on `calendar.google.com/calendar/embed`, contains `en.bd%23holiday`. |
 | YouTube Live | ✅ | ✅ | iframe present, src on `youtube`, contains video id `WGBm9X4vLPw`. First Gutenberg run flaked once on cold oEmbed; passed on re-run. |
-| YouTube Channel | ⚠️ | ⚠️ | Asserts wrapper `[data-embed-type="YoutubeChannel"]` only — channel content is gated behind a YouTube Data API key the test env doesn't set, so EmbedPress emits a placeholder. Wrapper-only assertion confirms URL recognition. |
+| YouTube Channel | ✅×5 | ✅×5 | 5 layout/control variants per editor: gallery (default), list, grid (Pro), carousel (Pro), controls (pagesize=3, ispagination=false, gapbetweenvideos=10). Real channel content asserted (`.channel-name="WPDeveloper"`, layout class, video-card count). Requires `YT_SECRET` in `.env`. |
 | YouTube Live (Channel) | ✅ | ✅ | iframe present, src on `embed/live_stream`, contains `channel=UCos52azQNBgW63_9uDJoPDA`. oEmbed resolves `/live` without needing the API key. |
 
 **11 of 92** sources with a URL in `sources.json` have verification specs.
@@ -86,23 +86,28 @@ Things the current verify-only architecture deliberately does **not** exercise:
 
 ## Follow-ups (planned)
 
-### Layout & control variants per source
+### Layout & control variants for other sources
 
-Several sources expose multiple **layouts** and rich control sets in the EmbedPress block — today we only verify the default render. Examples:
+**Done for YouTube Channel** (the experiment) — variants infrastructure is now wired up:
 
-- **YouTube Channel** — list / grid / carousel / slider, plus thumbnail size, sort order, results count, autoplay, etc. Today's spec only asserts the wrapper (`[data-embed-type="YoutubeChannel"]`) because (a) the seed stores only the URL and (b) channel content needs a YouTube Data API key the test env doesn't provide.
-- **Spotify Playlist / Album** — theme (light/dark), view (compact/full), size variants.
-- **Carousel-capable sources** — anything that can be wrapped in EmbedPress's gallery/carousel block (loaded JS suggests it; no spec exists).
+- `seed/index.ts` honours a `VARIANTS_BY_SOURCE` map; each variant carries `gutenbergAttrs` / `elementorSettings` and a slug suffix.
+- `seed/editors/gutenberg.ts` and `seed/editors/elementor.ts` both accept extra attrs, merging into block JSON / widget settings.
+- `scripts/resolve-gutenberg-embeds.php` calls `Shortcode::parseContent($url, true, $atts)` (not `do_shortcode`) so block attrs reach EmbedPress's provider, and preserves layout/control attrs on the rewritten block so re-resolves stay deterministic.
+- `setup-wp.sh` writes `YT_SECRET` from `.env` into `embedpress:youtube` option so channel-gated content renders.
+
+**Sources still on default-only verification that have meaningful layout/control matrices:**
+
+- **Spotify Playlist / Album / Artist / Single** — theme (light/dark), view (compact/full), size variants.
+- **Instagram** — feed type, results count (Pro).
+- **Vimeo / Wistia / Vidyard** — autoplay, loop, custom controls (mostly Pro).
 - **PDF / Document blocks** — viewer modes, toolbar, download button, watermark, page selection.
+- **Google Calendar** — view mode (month/week/agenda).
 
-Concrete plan when this is picked up:
+To add variants for any of these, follow the YouTube Channel pattern: extend `VARIANTS_BY_SOURCE`, write per-variant specs, re-seed.
 
-1. Extend `sources.json` (or a sibling `variants.json`) to allow **multiple variants per source**, each with a `gutenbergAttrs` / `elementorSettings` payload. Slug becomes `<source-slug>-<variant>` (e.g. `ep-gutenberg-youtube-channel-grid`).
-2. Teach the seed to honour those attributes (Gutenberg: stuff into block `attrs` and re-resolve via `scripts/resolve-gutenberg-embeds.php`; Elementor: extend `seed/editors/elementor.ts` per-source).
-3. Wire test-env API keys (`EP_YOUTUBE_API_KEY`, etc.) via `wp option update embedpress_settings ...` in `setup.sh` so YouTube Channel and similar API-gated sources actually render.
-4. One spec per variant, asserting layout-specific DOM (e.g. `.ep-youtube-channel-grid`, video-card count, dark-theme class on Spotify).
+### Generalising the variants schema
 
-Estimate: 1–2 days for YouTube Channel + sibling gallery sources; another 1–2 for Spotify / PDF families.
+The `VARIANTS_BY_SOURCE` map is currently an object literal in `seed/index.ts`. If the variant set grows beyond ~5 sources, move it to a sibling file (`seed/variants.ts` or extend `sources.json`) so it's data-driven instead of code.
 
 ## Known infrastructure issues that affect coverage
 

@@ -15,9 +15,16 @@
  * editor would have saved. That step also covers dynamic providers (Instagram,
  * OpenSea, Wistia, Google Photos) where the early-return is bypassed and
  * `embedHTML` is the only path the render callback honours.
+ *
+ * `extraAttrs` lets callers inject layout/control attributes (e.g.
+ * `ytChannelLayout`, `pagesize`) so the resolve step can re-render with
+ * non-default settings — used by the YouTube Channel layout-variant suite.
  */
-export function buildGutenbergContent(url: string): string {
-  const attrs = JSON.stringify({ url, href: url });
+export function buildGutenbergContent(
+  url: string,
+  extraAttrs: Record<string, unknown> = {},
+): string {
+  const attrs = JSON.stringify({ url, href: url, ...extraAttrs });
   return [
     `<!-- wp:embedpress/embedpress ${attrs} -->`,
     `<figure class="wp-block-embedpress-embedpress">[embedpress]${url}[/embedpress]</figure>`,

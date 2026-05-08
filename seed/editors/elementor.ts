@@ -13,13 +13,18 @@
  * which makes any "configure controls" e2e test fail. Values are the short
  * slugs EmbedPress Pro uses internally — see Embedpress_Elementor.php.
  */
-export function buildElementorData(url: string, sourceName: string): string {
+export function buildElementorData(
+  url: string,
+  sourceName: string,
+  extraSettings: Record<string, unknown> = {},
+): string {
   const proSource = getProSourceKey(sourceName);
 
   const widgetSettings: Record<string, unknown> = {
     embedpress_embeded_link: url,
     width: '600',
     height: '450',
+    ...extraSettings,
   };
   if (proSource) {
     widgetSettings.embedpress_pro_embeded_source = proSource;

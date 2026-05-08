@@ -37,6 +37,11 @@ services:
       WORDPRESS_DB_NAME: ${MYSQL_DATABASE:-wordpress}
       WORDPRESS_TABLE_PREFIX: wp_
       WORDPRESS_DEBUG: "1"
+      # YouTube Data API key — surfaced in the container so wp-cli (run via
+      # `docker exec`) can read it. setup-wp.sh writes it into the
+      # `embedpress:youtube` option; without a key, channel-based sources
+      # render the EmbedPress placeholder instead of real content.
+      YT_SECRET: ${YT_SECRET:-}
     volumes:
       - wp_data:/var/www/html
       - ./scripts:/scripts

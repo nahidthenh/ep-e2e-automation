@@ -8,6 +8,20 @@
 #   2. Fallback → install from wordpress.org (free only; pro requires a local path)
 set -euo pipefail
 
+# Load env vars from .env (same pattern as seed-pages.sh — line-by-line so
+# values containing spaces don't trip `source`). Only the keys this script
+# consumes are pulled in.
+if [ -f .env ]; then
+  for key in WP_URL WP_ADMIN_USER WP_ADMIN_PASS WP_ADMIN_EMAIL WP_TITLE \
+             MYSQL_USER MYSQL_PASSWORD MYSQL_DATABASE \
+             EP_FREE_PLUGIN_PATH EP_PRO_PLUGIN_PATH \
+             YT_SECRET; do
+    val="$(grep -E "^${key}=" .env | head -n1 | cut -d= -f2- \
+            | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
+    [ -n "$val" ] && export "${key}=${val}"
+  done
+fi
+
 WP_URL="${WP_URL:-http://localhost:8080}"
 WP_ADMIN_USER="${WP_ADMIN_USER:-admin}"
 WP_ADMIN_PASS="${WP_ADMIN_PASS:-admin}"
@@ -91,6 +105,23 @@ if [ -n "$EP_PRO_PLUGIN_PATH" ]; then
   fi
 else
   echo "  EP_PRO_PLUGIN_PATH not set — skipping Pro install"
+fi
+
+echo "━━━ Configuring EmbedPress YouTube API key ━━━"
+# Reads YT_SECRET from the host environment (or .env via docker-compose's
+# implicit env load). Stored in the `embedpress:youtube` option that
+# YouTube.php's get_api_key() reads. Without a key, YouTube Channel and
+# YouTube Live (Channel) sources render an "enter your YouTube API key"
+# placeholder instead of real channel content.
+if [ -n "${YT_SECRET:-}" ]; then
+  # Use printf %q to safely escape the key for the shell pipeline; pipe JSON
+  # via stdin so the colon in the option name doesn't confuse wp-cli.
+  printf '{"api_key":"%s"}' "$YT_SECRET" \
+    | docker exec -i "$WP_CONTAINER" \
+        wp option update 'embedpress:youtube' --format=json --allow-root --path=/var/www/html
+  echo "  ✓ YouTube API key written to embedpress:youtube"
+else
+  echo "  YT_SECRET unset — YouTube Channel renders will show the API-key placeholder"
 fi
 
 echo "━━━ Setting permalink structure ━━━"

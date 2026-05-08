@@ -20,6 +20,47 @@ import { buildElementorData } from './editors/elementor';
 const SEED_ID_START = 1000;
 const ELEMENTOR_VERSION = '3.18.0';
 
+/**
+ * Variant of a source — when present, the seed emits one page per variant
+ * with the variant's slug suffix and attribute overrides. Used today for
+ * YouTube Channel's layout × control matrix; the architecture is intentionally
+ * generic so other sources (Spotify, etc.) can adopt it later.
+ */
+interface Variant {
+  /** Slug suffix appended to the source's base slug (e.g. `-list`). */
+  suffix: string;
+  /** Block attributes merged into `wp:embedpress/embedpress` at seed time. */
+  gutenbergAttrs: Record<string, unknown>;
+  /** Widget settings merged into the Elementor `_elementor_data` widget. */
+  elementorSettings: Record<string, unknown>;
+}
+
+const VARIANTS_BY_SOURCE: Record<string, Variant[]> = {
+  // YouTube Channel — exercises `ytChannelLayout` (gallery/list/grid/carousel)
+  // and a controls variant (pagesize, ispagination). Grid + carousel are
+  // gated by `apply_filters('embedpress/is_allow_rander')` which only Pro
+  // sets — those specs Pro-skip when Pro is inactive.
+  'YouTube Channel': [
+    { suffix: '',           gutenbergAttrs: { ytChannelLayout: 'gallery' },  elementorSettings: { ytChannelLayout: 'gallery' } },
+    { suffix: '-list',      gutenbergAttrs: { ytChannelLayout: 'list' },     elementorSettings: { ytChannelLayout: 'list' } },
+    { suffix: '-grid',      gutenbergAttrs: { ytChannelLayout: 'grid' },     elementorSettings: { ytChannelLayout: 'grid' } },
+    { suffix: '-carousel',  gutenbergAttrs: { ytChannelLayout: 'carousel' }, elementorSettings: { ytChannelLayout: 'carousel' } },
+    {
+      suffix: '-controls',
+      gutenbergAttrs:    { ytChannelLayout: 'gallery', pagesize: '3', ispagination: false, gapbetweenvideos: 10 },
+      elementorSettings: { ytChannelLayout: 'gallery', pagesize: '3', ispagination: '',    gapbetweenvideos: { unit: 'px', size: 10 } },
+    },
+  ],
+};
+
+function getVariants(sourceName: string): Variant[] {
+  const overrides = VARIANTS_BY_SOURCE[sourceName];
+  if (overrides && overrides.length > 0) return overrides;
+  // Default: one variant with no suffix and no overrides — preserves the
+  // historical 1-page-per-source behaviour for every other source.
+  return [{ suffix: '', gutenbergAttrs: {}, elementorSettings: {} }];
+}
+
 interface CliArgs {
   source?: string;
   editor?: Editor;
@@ -44,18 +85,35 @@ function sqlEscape(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-function emitDeletes(targets: { editor: Editor; sourceName: string }[]): string {
-  const slugs = targets.map((t) => `'${pageSlug(t.editor, t.sourceName)}'`).join(', ');
+interface Target {
+  editor: Editor;
+  sourceName: string;
+  variant: Variant;
+}
+
+function variantSlug(editor: Editor, sourceName: string, variant: Variant): string {
+  return pageSlug(editor, sourceName) + variant.suffix;
+}
+
+function variantTitle(editor: Editor, sourceName: string, variant: Variant): string {
+  const base = pageTitle(editor, sourceName);
+  return variant.suffix ? `${base} (${variant.suffix.replace(/^-/, '')})` : base;
+}
+
+function emitDeletes(targets: Target[]): string {
+  const slugs = targets
+    .map((t) => `'${variantSlug(t.editor, t.sourceName, t.variant)}'`)
+    .join(', ');
   return [
     `DELETE FROM wp_postmeta WHERE post_id IN (SELECT ID FROM wp_posts WHERE post_name IN (${slugs}));`,
     `DELETE FROM wp_posts WHERE post_name IN (${slugs});`,
   ].join('\n');
 }
 
-function emitGutenberg(id: number, source: Source): string {
-  const slug = pageSlug('gutenberg', source.source);
-  const title = pageTitle('gutenberg', source.source);
-  const content = buildGutenbergContent(source.url!);
+function emitGutenberg(id: number, source: Source, variant: Variant): string {
+  const slug = variantSlug('gutenberg', source.source, variant);
+  const title = variantTitle('gutenberg', source.source, variant);
+  const content = buildGutenbergContent(source.url!, variant.gutenbergAttrs);
   return `
 -- ${source.source} (Gutenberg)
 INSERT INTO wp_posts
@@ -79,10 +137,14 @@ INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES
 `;
 }
 
-function emitElementor(id: number, source: Source): string {
-  const slug = pageSlug('elementor', source.source);
-  const title = pageTitle('elementor', source.source);
-  const elementorData = buildElementorData(source.url!, source.source);
+function emitElementor(id: number, source: Source, variant: Variant): string {
+  const slug = variantSlug('elementor', source.source, variant);
+  const title = variantTitle('elementor', source.source, variant);
+  const elementorData = buildElementorData(
+    source.url!,
+    source.source,
+    variant.elementorSettings,
+  );
   return `
 -- ${source.source} (Elementor)
 INSERT INTO wp_posts
@@ -129,9 +191,13 @@ function main(): void {
     ? [args.editor]
     : ['gutenberg', 'elementor'];
 
-  const targets: { editor: Editor; sourceName: string }[] = [];
+  const targets: Target[] = [];
   for (const s of filtered) {
-    for (const e of editors) targets.push({ editor: e, sourceName: s.source });
+    for (const v of getVariants(s.source)) {
+      for (const e of editors) {
+        targets.push({ editor: e, sourceName: s.source, variant: v });
+      }
+    }
   }
 
   const out: string[] = [
@@ -143,8 +209,10 @@ function main(): void {
 
   let nextId = SEED_ID_START;
   for (const s of filtered) {
-    if (editors.includes('gutenberg')) out.push(emitGutenberg(nextId++, s));
-    if (editors.includes('elementor')) out.push(emitElementor(nextId++, s));
+    for (const v of getVariants(s.source)) {
+      if (editors.includes('gutenberg')) out.push(emitGutenberg(nextId++, s, v));
+      if (editors.includes('elementor')) out.push(emitElementor(nextId++, s, v));
+    }
   }
 
   process.stdout.write(out.join('\n') + '\n');
