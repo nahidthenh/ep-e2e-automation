@@ -19,17 +19,21 @@ Tests are **verification-only**. The seed pipeline (`seed/index.ts`) publishes o
 | YouTube | ✅ | ✅ | iframe present, src contains video id `5zWTInJqD5k`. |
 | Google Docs | ✅ | ✅ | iframe present, src contains doc id `2PACX-1vQBdUB9bU8y9hnIrDv…`. |
 | Google Slides | ✅ | ✅ | iframe present, src on `docs.google.com/presentation`, contains presentation id. |
+| Google Sheets | ✅ | ✅ | iframe present, src on `docs.google.com/spreadsheets`, contains spreadsheet id. |
+| Google Forms | ✅ | ✅ | iframe present, src on `docs.google.com/forms`, contains form id. |
+| Google Maps | ✅ | ✅ | iframe present, src on `maps.google.com/maps`, contains `q=WPDeveloper`. |
+| Google Drawing | ✅ | ✅ | Renders as `<img>` (not iframe), src on `docs.google.com/drawings`, contains drawing id. |
+| Google Calendar | ✅ | ✅ | iframe present, src on `calendar.google.com/calendar/embed`, contains `en.bd%23holiday`. |
 
-**3 of 92** sources with a URL in `sources.json` have verification specs.
+**8 of 92** sources with a URL in `sources.json` have verification specs.
 
 ## Not yet covered
 
-### Sources missing both Gutenberg and Elementor verification specs (89)
+### Sources missing both Gutenberg and Elementor verification specs (84)
 
 Grouped by family for planning. Each row needs `tests/gutenberg/<slug>.spec.ts` and `tests/elementor/<slug>.spec.ts`.
 
-**Google suite**
-- Google Sheets, Google Forms, Google Maps, Google Drawing, Google Calendar
+**Google suite** — *all covered* ✅
 
 **YouTube family (sibling sources)**
 - YouTube Live, YouTube Channel, YouTube Live (Channel)
