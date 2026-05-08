@@ -84,6 +84,26 @@ Things the current verify-only architecture deliberately does **not** exercise:
 9. **Failure modes** — no specs for invalid URLs, expired oEmbed responses, network errors, or "Pro required" notice rendering when Pro is inactive.
 10. **Authentication / capabilities** — only the admin storage state is used. No editor / author / subscriber roles are exercised.
 
+## Follow-ups (planned)
+
+### Layout & control variants per source
+
+Several sources expose multiple **layouts** and rich control sets in the EmbedPress block — today we only verify the default render. Examples:
+
+- **YouTube Channel** — list / grid / carousel / slider, plus thumbnail size, sort order, results count, autoplay, etc. Today's spec only asserts the wrapper (`[data-embed-type="YoutubeChannel"]`) because (a) the seed stores only the URL and (b) channel content needs a YouTube Data API key the test env doesn't provide.
+- **Spotify Playlist / Album** — theme (light/dark), view (compact/full), size variants.
+- **Carousel-capable sources** — anything that can be wrapped in EmbedPress's gallery/carousel block (loaded JS suggests it; no spec exists).
+- **PDF / Document blocks** — viewer modes, toolbar, download button, watermark, page selection.
+
+Concrete plan when this is picked up:
+
+1. Extend `sources.json` (or a sibling `variants.json`) to allow **multiple variants per source**, each with a `gutenbergAttrs` / `elementorSettings` payload. Slug becomes `<source-slug>-<variant>` (e.g. `ep-gutenberg-youtube-channel-grid`).
+2. Teach the seed to honour those attributes (Gutenberg: stuff into block `attrs` and re-resolve via `scripts/resolve-gutenberg-embeds.php`; Elementor: extend `seed/editors/elementor.ts` per-source).
+3. Wire test-env API keys (`EP_YOUTUBE_API_KEY`, etc.) via `wp option update embedpress_settings ...` in `setup.sh` so YouTube Channel and similar API-gated sources actually render.
+4. One spec per variant, asserting layout-specific DOM (e.g. `.ep-youtube-channel-grid`, video-card count, dark-theme class on Spotify).
+
+Estimate: 1–2 days for YouTube Channel + sibling gallery sources; another 1–2 for Spotify / PDF families.
+
 ## Known infrastructure issues that affect coverage
 
 Carried from the skill notes — these are pre-existing problems, not test gaps.
