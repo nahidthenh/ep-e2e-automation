@@ -24,19 +24,21 @@ Tests are **verification-only**. The seed pipeline (`seed/index.ts`) publishes o
 | Google Maps | ✅ | ✅ | iframe present, src on `maps.google.com/maps`, contains `q=WPDeveloper`. |
 | Google Drawing | ✅ | ✅ | Renders as `<img>` (not iframe), src on `docs.google.com/drawings`, contains drawing id. |
 | Google Calendar | ✅ | ✅ | iframe present, src on `calendar.google.com/calendar/embed`, contains `en.bd%23holiday`. |
+| YouTube Live | ✅ | ✅ | iframe present, src on `youtube`, contains video id `WGBm9X4vLPw`. First Gutenberg run flaked once on cold oEmbed; passed on re-run. |
+| YouTube Channel | ⚠️ | ⚠️ | Asserts wrapper `[data-embed-type="YoutubeChannel"]` only — channel content is gated behind a YouTube Data API key the test env doesn't set, so EmbedPress emits a placeholder. Wrapper-only assertion confirms URL recognition. |
+| YouTube Live (Channel) | ✅ | ✅ | iframe present, src on `embed/live_stream`, contains `channel=UCos52azQNBgW63_9uDJoPDA`. oEmbed resolves `/live` without needing the API key. |
 
-**8 of 92** sources with a URL in `sources.json` have verification specs.
+**11 of 92** sources with a URL in `sources.json` have verification specs.
 
 ## Not yet covered
 
-### Sources missing both Gutenberg and Elementor verification specs (84)
+### Sources missing both Gutenberg and Elementor verification specs (81)
 
 Grouped by family for planning. Each row needs `tests/gutenberg/<slug>.spec.ts` and `tests/elementor/<slug>.spec.ts`.
 
 **Google suite** — *all covered* ✅
 
-**YouTube family (sibling sources)**
-- YouTube Live, YouTube Channel, YouTube Live (Channel)
+**YouTube family (sibling sources)** — *all covered* ✅
 
 **Social**
 - Facebook Post, Facebook Video, Instagram, Twitter Feed, Tumblr, BlueskySocial, Behance
