@@ -1,11 +1,13 @@
 ---
 name: add-source-test
-description: Generate Playwright create-flow tests for a single EmbedPress source (Gutenberg + Elementor). Reads the EmbedPress plugin source to enumerate that source's actual controls, writes one spec per editor under tests/<editor>/<slug>.spec.ts, skips Pro-only sources when Pro isn't active, and re-runs the seed so the baseline page exists. Triggers on phrases like "add a test for YouTube", "write tests for Spotify Playlist", "/add-source-test <name>".
+description: Generate Playwright verification specs for a single EmbedPress source (Gutenberg + Elementor). The seed pipeline already publishes the embedded pages, so generated specs only visit `/ep-<editor>-<slug>/` and assert the iframe rendered correctly — no editor automation. Skips Pro-only sources when Pro isn't active. Triggers on phrases like "add a test for YouTube", "write tests for Spotify Playlist", "/add-source-test <name>".
 ---
 
 # add-source-test
 
-Generates two Playwright **create-flow** specs for a given EmbedPress source — one for Gutenberg, one for Elementor.
+Generates two Playwright **verification** specs for a given EmbedPress source — one each for the seeded Gutenberg and Elementor pages. Tests do **not** drive the editor. They visit the already-seeded front-end URL and assert the embed renders.
+
+**Why no editor flow:** the seed pipeline (`seed/index.ts`) inserts the page rows directly into the DB with the source URL embedded. Re-driving the editor on every CI run is slow, brittle (welcome modals, command-palette overlays, Elementor panel races), and adds nothing — if the embed renders on the seeded page, the integration is healthy. Editor coverage belongs in plugin-level tests, not in this E2E harness.
 
 ## Inputs
 
@@ -22,6 +24,8 @@ If the user invokes the skill without a name, ask: *"Which source from `sources.
 
 `<slug>` follows `seed/sources.ts:slugify` — lowercase, non-alphanumeric → `-`, trim leading/trailing `-`. E.g. `Spotify Playlist` → `spotify-playlist`.
 
+The seeded page slugs are `ep-gutenberg-<slug>` and `ep-elementor-<slug>` (see `seed/sources.ts:pageSlug`).
+
 ---
 
 ## Workflow
@@ -31,49 +35,43 @@ If the user invokes the skill without a name, ask: *"Which source from `sources.
 1. Read `sources.json`.
 2. Find the entry whose `source` matches the input case-insensitively. If none, abort with: *"`<name>` not found in sources.json. Add it via the `update-sources` skill first."*
 3. If `url` is `null`, abort with: *"`<name>` has no URL — cannot generate tests."*
-4. Compute `<slug>` and capture the `url` for use in the spec.
+4. Compute `<slug>` and capture the `url` for use in the assertions.
 
-### Step 2 — Locate EmbedPress plugin sources
+### Step 2 — Determine if the source requires Pro to render
+
+Some sources only render when EmbedPress Pro is active (the seeded page exists either way, but the front-end shows a "Pro required" notice instead of an iframe). The skill needs this to decide whether to emit a Pro-detection skip block.
 
 Read `EP_FREE_PLUGIN_PATH` and `EP_PRO_PLUGIN_PATH` from `.env` (fallback to `.env.example`). Defaults if unset:
 - Free: `../EmbedPress/embedpress`
 - Pro:  `../EmbedPress/embedpress-pro`
 
-Resolve relative to repo root. If a path doesn't exist on disk, warn the user — the skill can still proceed using the generic `embedpress/embedpress` block but **will not be able to enumerate source-specific controls**.
-
-### Step 3 — Determine if the source is Pro-only
-
 Search the plugin source for the source's identifier (try several forms: full name, slug, short slug like `youtube` or `googlemaps`):
 
-- If the registration appears **only** under the Pro path → `PRO_REQUIRED = true`
-- If found in Free → `PRO_REQUIRED = false`
+- Registration appears **only** under the Pro path → `PRO_REQUIRED = true`
+- Found in Free → `PRO_REQUIRED = false`
 - If you can't find any registration, ask the user before guessing
 
-Common search patterns (use Grep / Explore agent):
-- Block registration: files with `register_block_type`, `embedpress/<slug>`, or `Blocks/<Slug>` directories
-- Elementor widget: files with `widget_type` or class names ending in `_Elementor` / `_Widget`
-- Source label / class names sometimes differ from the display name (e.g. `Google Maps` may register under `Gmap` or `Google_Maps`)
+Common patterns to grep for:
+- `register_block_type`, `embedpress/<slug>`, or `Blocks/<Slug>` directories
+- `widget_type` or class names ending in `_Elementor` / `_Widget`
+- Display name vs. internal name often differ (e.g. `Google Maps` may register as `Gmap` or `Google_Maps`)
 
-### Step 4 — Enumerate controls (the heart of this skill)
+If the plugin paths don't exist on disk, warn the user and ask whether to default `PRO_REQUIRED` to `false` or `true` — the skill should not silently guess.
 
-For the source, find:
-- **Block name** for Gutenberg (e.g. `embedpress/youtube-block`, or fall back to generic `embedpress/embedpress`)
-- **Widget type** for Elementor (note the EmbedPress typos that **must be preserved**:
-  - widget id often `embedpres_<slug>` (missing trailing `s` in "embedpress")
-  - URL setting key is often `embedpress_embeded_link` (typo: "embeded"))
-- **3–5 source-specific controls** worth testing — pick the ones a user would notice change. E.g. for YouTube: `autoplay`, `start_time`, `loop`, `controls`. For Google Maps: `zoom`, `map_type`. For Spotify Playlist: `theme`, `view`, `size`.
+### Step 3 — Identify a stable iframe selector and assertion
 
-**Do not try to test all 30+ controls — keep specs focused.** Pick controls whose effect is observable on the rendered iframe (URL parameters, iframe attributes, or visible UI elements).
+The verification spec needs **one** robust selector for the rendered iframe and **one** assertion that proves the right content loaded. Pick from the source URL whatever uniquely identifies the embed (video id, channel slug, place id, track id, etc.) and assert it appears in the iframe `src` (or in a recognisable text node for sources that render server-side).
 
-For each chosen control, record:
-- The Gutenberg attribute name (camelCase or snake_case as the block uses it)
-- The Elementor control id
-- A non-default value to set
-- An assertion that lets the test verify the control was applied (URL param, attribute, DOM)
+Examples:
+- YouTube `https://www.youtube.com/watch?v=5zWTInJqD5k` → selector `iframe[src*="youtube"]`, assertion `src` contains `5zWTInJqD5k`.
+- Google Maps `…&q=Eiffel+Tower` → selector `iframe[src*="google.com/maps"]`, assertion `src` contains `Eiffel`.
+- Spotify Playlist `…/playlist/<id>` → selector `iframe[src*="spotify.com/embed"]`, assertion `src` contains the playlist id.
 
-### Step 5 — Generate the spec files
+If the source renders without an iframe (rare — some Pro sources inline content), pick a stable DOM marker instead. State this clearly when reporting back.
 
-Use the templates below. Keep the spec self-contained — don't add new helpers unless a clear pattern emerges across multiple sources. The default helpers in `helpers/wp-admin.ts` and `helpers/page-utils.ts` cover the common path.
+### Step 4 — Generate the spec files
+
+Use the templates below. Both specs are tiny on purpose. Do not reintroduce editor helpers (`goToNewGutenbergPage`, `openWithElementor`, etc.) — they're not needed for verification.
 
 Naming:
 - `tests/gutenberg/<slug>.spec.ts`
@@ -81,7 +79,7 @@ Naming:
 
 If a file already exists, ask before overwriting.
 
-### Step 6 — Re-seed the source
+### Step 5 — Re-seed the source
 
 After writing the specs, run:
 
@@ -91,18 +89,18 @@ npm run seed -- --source "<source name>"
 
 (Idempotent — wipes and re-inserts the two pages for that source.) This guarantees the baseline seeded pages exist when someone clones the repo and runs `npm run setup`. The CI workflow already calls `scripts/seed-pages.sh` after WP install, so no workflow changes are needed per source.
 
-### Step 7 — Smoke run the new specs
+### Step 6 — Smoke run the new specs
 
 ```bash
 npx playwright test tests/gutenberg/<slug>.spec.ts tests/elementor/<slug>.spec.ts
 ```
 
 If a test fails:
-- Don't blindly relax assertions. First confirm the control id/attribute by re-reading the EmbedPress source.
-- If the fail is due to a UI selector drifting, fix the selector — don't replace it with `.first()` to mute the failure.
-- If a Pro source fails because Pro is inactive, the `test.skip` block (Step 8) should already prevent it; revisit the detection logic.
+- First confirm the seeded page actually exists: `curl -sI <site>/ep-gutenberg-<slug>/` should return 200, not 404. If 404, re-run Step 5.
+- If the page loads but the iframe selector misses, open the URL in a browser and inspect what EmbedPress actually rendered. Update the selector — don't loosen the assertion to `iframe` first-match unless the source genuinely has no distinguishing attribute.
+- If a Pro source fails because Pro is inactive, the `test.skip` block should already prevent it; revisit the detection logic in Step 2.
 
-### Step 8 — Pro detection block (template)
+### Step 7 — Pro detection block (template)
 
 Every spec emits this `test.beforeAll` when `PRO_REQUIRED = true`:
 
@@ -130,175 +128,87 @@ For free sources, omit the block entirely — don't leave a no-op `test.beforeAl
 
 ```ts
 import { test, expect } from '@playwright/test';
-import {
-  goToNewGutenbergPage,
-  setGutenbergTitle,
-  insertBlock,
-  publishGutenbergPage,
-} from '../../helpers/wp-admin';
 
-const SOURCE_NAME = '<Source Display Name>';
-const SOURCE_URL  = '<URL from sources.json>';
+const SOURCE_NAME  = '<Source Display Name>';
+const SOURCE_URL   = '<URL from sources.json>';
+const SEEDED_SLUG  = 'ep-gutenberg-<slug>';
+const IFRAME_SEL   = '<iframe[src*="…"]>';
+const URL_MARKER   = '<unique substring from SOURCE_URL>';
 const PRO_REQUIRED = <true|false>;
 
 // (Pro detection beforeAll — only emit when PRO_REQUIRED is true)
 
-test.describe(`Gutenberg create flow — ${SOURCE_NAME}`, () => {
-  test('insert block, configure controls, publish, verify', async ({ page }) => {
-    await goToNewGutenbergPage(page);
-    await setGutenbergTitle(page, `EP Gutenberg create — ${SOURCE_NAME}`);
+test.describe(`Gutenberg verify — ${SOURCE_NAME}`, () => {
+  test('seeded page renders the embed', async ({ page }) => {
+    const response = await page.goto(`/${SEEDED_SLUG}/`, { waitUntil: 'load' });
+    expect(
+      response?.ok(),
+      `seeded page not found — run \`npm run seed -- --source "${SOURCE_NAME}"\``,
+    ).toBeTruthy();
 
-    // Insert the source-specific block (or generic "EmbedPress" block).
-    await insertBlock(page, '<Block label as it appears in the inserter>');
-
-    // Fill the URL placeholder.
-    // Selector typically: input[type="url"] inside the block placeholder.
-    // Confirm by inspecting EmbedPress source / running --headed.
-    const urlInput = page.locator('input[placeholder*="URL"], input[type="url"]').first();
-    await urlInput.fill(SOURCE_URL);
-    await urlInput.press('Enter');
-
-    // Configure 3–5 controls. Open the block sidebar (Settings panel) first.
-    // Example pattern — adapt per control.
-    // await page.getByRole('button', { name: '<Control panel toggle>' }).click();
-    // await page.getByLabel('<Control label>').check();    // for toggles
-    // await page.getByLabel('<Control label>').fill('42'); // for numeric
-
-    const frontUrl = await publishGutenbergPage(page);
-    await page.goto(frontUrl, { waitUntil: 'load' });
-
-    // Iframe presence
-    const iframe = page.locator('iframe').first();
+    const iframe = page.locator(IFRAME_SEL).first();
     await expect(iframe).toBeVisible({ timeout: 30_000 });
-
-    // Per-control assertions — verify each non-default value reached the iframe.
-    // Example: await expect(iframe).toHaveAttribute('src', /autoplay=1/);
+    await expect(iframe).toHaveAttribute('src', new RegExp(URL_MARKER));
   });
 });
 ```
 
 ## Spec template — Elementor
 
-The seeded `ep-elementor-<slug>` page already contains the EmbedPress widget pre-populated with the source's URL. For a true *create flow*, open the page in Elementor, **delete** the existing widget, drop a fresh one, configure controls, save.
-
 ```ts
 import { test, expect } from '@playwright/test';
-import {
-  openWithElementor,
-  addElementorWidget,
-  setEmbedPressUrl,
-  publishElementorPage,
-  verifyYouTubeEmbedOnPage,
-} from '../../helpers/page-utils';
 
-const SOURCE_NAME = '<Source Display Name>';
-const SOURCE_URL  = '<URL from sources.json>';
-const SEEDED_SLUG = 'ep-elementor-<slug>';
+const SOURCE_NAME  = '<Source Display Name>';
+const SOURCE_URL   = '<URL from sources.json>';
+const SEEDED_SLUG  = 'ep-elementor-<slug>';
+const IFRAME_SEL   = '<iframe[src*="…"]>';
+const URL_MARKER   = '<unique substring from SOURCE_URL>';
 const PRO_REQUIRED = <true|false>;
 
 // (Pro detection beforeAll — only emit when PRO_REQUIRED is true)
 
-test.describe(`Elementor create flow — ${SOURCE_NAME}`, () => {
-  test('drop widget, configure controls, save, verify', async ({ page }) => {
-    // Resolve the seeded page's ID (slug → ID via REST API).
-    await page.goto(`/${SEEDED_SLUG}/`);
-    const postId = await page.evaluate(
-      () => (document.body.className.match(/postid-(\d+)/) ?? [])[1],
-    );
-    expect(postId, 'seeded page not found — run `npm run seed`').toBeTruthy();
+test.describe(`Elementor verify — ${SOURCE_NAME}`, () => {
+  test('seeded page renders the embed', async ({ page }) => {
+    const response = await page.goto(`/${SEEDED_SLUG}/`, { waitUntil: 'load' });
+    expect(
+      response?.ok(),
+      `seeded page not found — run \`npm run seed -- --source "${SOURCE_NAME}"\``,
+    ).toBeTruthy();
 
-    await openWithElementor(page, Number(postId));
-
-    // (Optional) Clear existing widget to truly "create" fresh.
-    // await page.locator('.elementor-widget-embedpres_elementor').first()
-    //   .click({ button: 'right' }); // … then "Delete" via context menu.
-
-    await addElementorWidget(page, '<Widget label in panel>');
-    await setEmbedPressUrl(page, SOURCE_URL);
-
-    // Configure 3–5 controls in the Elementor panel.
-    // await page.locator('[data-setting="<setting_id>"] input').fill('<value>');
-
-    const frontUrl = await publishElementorPage(page);
-    await page.goto(frontUrl, { waitUntil: 'load' });
-
-    const iframe = page.locator('iframe').first();
+    const iframe = page.locator(IFRAME_SEL).first();
     await expect(iframe).toBeVisible({ timeout: 30_000 });
-
-    // Per-control assertions
-    // await expect(iframe).toHaveAttribute('src', /<param>=<value>/);
+    await expect(iframe).toHaveAttribute('src', new RegExp(URL_MARKER));
   });
 });
 ```
+
+The two templates are intentionally near-identical. The split per editor exists so a single editor's regression doesn't mask the other — Gutenberg and Elementor render through different code paths in EmbedPress.
 
 ---
 
 ## Pitfalls & rules
 
-- **Preserve EmbedPress typos** — `embedpres_elementor` (no trailing s) and `embedpress_embeded_link` (one d) are intentional bugs in the plugin. Do not "correct" them in selectors.
-- **Don't add helpers prematurely.** If the same logic appears in 3+ generated specs, then refactor into `helpers/` — not before.
+- **Don't reintroduce editor automation.** No `goToNewGutenbergPage`, no `openWithElementor`, no `insertBlock`, no widget-drop logic. Editor flows live in plugin tests, not here. If you find yourself wanting to test a control, that's a sign the request belongs in the EmbedPress plugin repo, not this harness.
 - **Don't tweak `sources.json`.** Use the `update-sources` skill if a URL or name needs to change.
 - **Don't modify the seed pipeline (`seed/`)** per source — seeding is generic and already covers every entry in `sources.json`.
 - **Don't commit.** Generate the files and report what was created; the user commits when they're satisfied.
 - **One source per file.** Never combine multiple sources into a single spec.
-- **Generic block as fallback.** If a source-specific Gutenberg block doesn't exist (only `embedpress/embedpress`), control coverage drops to URL + a couple of generic controls. State this clearly when reporting back.
+- **Preserve EmbedPress typos** if you ever need to reference internal class names (`embedpres_elementor` — no trailing s — and `embedpress_embeded_link` — one d). They're intentional bugs in the plugin. Verification specs rarely touch these, but Pro-detection or DOM-marker fallbacks might.
 
 ## Reporting back
 
 After running, summarise in ≤ 5 lines:
 1. Files created (paths)
 2. Pro required: yes/no
-3. Controls covered: list 3–5
+3. Iframe selector + URL marker used
 4. Smoke result: passed / failed (count)
-5. Anything the user must do next (e.g. "Pro plugin path missing — controls inferred from public docs")
+5. Anything the user must do next (e.g. "Pro plugin path missing — Pro-required defaulted to true; confirm")
 
 ---
 
-## Known limitations (carried over from the YouTube dry-run, 2026-05-07)
+## Known limitations
 
-These are pre-existing infrastructure issues, not bugs in this skill. Generated specs may hit them and fail in ways that look like spec problems but aren't. Read this list before debugging a "why doesn't my new spec pass" question.
-
-### 1. WP 6.x command palette intermittently blocks the Gutenberg inserter
-
-**Symptom:** `insertBlock` fails with `<div class="components-modal__screen-overlay commands-command-menu__overlay">…</div> intercepts pointer events`. The `dismissWelcomeModal` Escape loop closes the palette, but it re-opens after subsequent clicks (especially after the title is set or after the inserter result is clicked).
-
-**Diagnosis path:**
-- Look at the failure screenshot — is there a Ctrl+K palette overlay on top?
-- Run the spec headed (`npx playwright test … --headed`) to see the timing.
-
-**Right fix (deferred):** rewrite `insertBlock` to use **slash-command insertion** instead of the inserter button:
-```ts
-// Click into editor canvas → type `/<blockName>` → Enter
-const canvas = page.locator('.block-editor-block-list__layout').first();
-await canvas.click();
-await page.keyboard.type(`/${blockName}`);
-await page.locator(`[role="option"]:has-text("${blockName}")`).first().click();
-```
-This avoids the inserter button (and therefore the palette races) entirely.
-
-**Workaround until that lands:** the helper currently drops the close-inserter step and uses `getByRole('option', { name, exact: true })`. Specs may still fail intermittently — re-run once before assuming the spec is broken.
-
-### 2. Elementor widget selection via `frameLocator.click` doesn't switch the panel
-
-**Symptom:** test successfully clicks `.elementor-widget-embedpres_elementor` inside the preview iframe, but the outer Elementor panel still shows page-level settings, not the widget's controls. Subsequent waits on `.elementor-control-<id>` time out.
-
-**Diagnosis path:**
-- After the iframe click, dump the panel state: `await page.locator('#elementor-panel-inner').textContent()` — does it mention the widget?
-- Try a real-browser click via `page.evaluate` on the iframe document to see if the underlying event isn't propagating.
-
-**Right fix (deferred):** drive selection through Elementor's JS API in the parent window:
-```ts
-await page.evaluate(() => {
-  const doc = (window as any).elementor.documents.getCurrent();
-  const widget = doc.container.children[0].children[0].children[0];
-  (window as any).$e.run('panel/editor/open', { model: widget.model, view: widget });
-});
-```
-That goes directly through Elementor's command bus instead of relying on click event simulation.
-
-**Workaround until that lands:** for sources with Pro controls, mark the spec `test.fixme()` and document the reason inline.
-
-### 3. Partial-seed ID collision after a full seed has run
+### 1. Partial-seed ID collision after a full seed has run
 
 **Symptom:** `npm run seed -- --source <name>` fails with `ERROR 1062 (23000) … Duplicate entry '1000' for key 'wp_posts.PRIMARY'` if a full seed already ran. The DELETE clause removes the named source's pages by slug, but the INSERT counter restarts at `SEED_ID_START` (1000), where another source's page still lives.
 
@@ -312,13 +222,13 @@ With deterministic IDs, partial re-seed always overwrites the same rows the full
 
 **Workaround:** when re-seeding a single source after a full seed, run `npm run seed` (no flag) to refresh everything. Slow but safe.
 
-### 4. WP setup must precede the skill's smoke step
+### 2. WP setup must precede the skill's smoke step
 
 **Symptom:** `npm run seed` succeeds at SQL generation but the MySQL pipe fails with `Table 'wordpress.wp_postmeta' doesn't exist`.
 
 **Cause:** WordPress core wasn't installed (or the volume was reset since the last `npm run setup`).
 
-**Right fix (deferred):** add a precondition probe to step 6:
+**Right fix (deferred):** add a precondition probe to step 5:
 ```bash
 docker exec ep_e2e_wp wp core is-installed --path=/var/www/html --allow-root \
   || { echo "WP not installed — run 'npm run setup' first"; exit 1; }
