@@ -165,6 +165,25 @@ jobs:
         # "Could not fully remove the plugin/theme".
         run: docker exec ep_e2e_wp chown -R www-data:www-data /var/www/html/wp-content
 
+      - name: Configure EmbedPress YouTube API key
+        # Mirrors the YT_SECRET branch in scripts/setup-wp.sh. Without a key,
+        # YouTube Channel and YouTube Live (Channel) sources render an
+        # "enter your YouTube API key" placeholder and the strict spec
+        # assertions on channel content fail. Set the YT_SECRET repository
+        # secret in Settings → Secrets and variables → Actions to enable.
+        env:
+          YT_SECRET: ${{ secrets.YT_SECRET }}
+        run: |
+          if [ -n "${YT_SECRET}" ]; then
+            printf '{"api_key":"%s"}' "${YT_SECRET}" \
+              | docker exec -i ep_e2e_wp \
+                  wp option update 'embedpress:youtube' --format=json \
+                  --path=/var/www/html --allow-root
+            echo "✓ YouTube API key written to embedpress:youtube"
+          else
+            echo "YT_SECRET unset — YouTube Channel renders will show the API-key placeholder (related strict specs will fail)"
+          fi
+
       - name: Seed test pages from sources.json
         run: bash scripts/seed-pages.sh
 
