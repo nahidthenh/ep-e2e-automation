@@ -10,82 +10,72 @@ Tests are **verification-only**. The seed pipeline (`seed/index.ts`) publishes o
 
 - **92 / 92** sources with a URL in `sources.json` have at least one verification spec.
 - **195 specs total** (smoke 3 + Gutenberg 96 + Elementor 96).
-- **194 passing, 1 skipped** (Elementor Archivos — see [§ Skipped / unsupported](#skipped--unsupported)).
-- **5 layout/control variants** for YouTube Channel (gallery, list, grid, carousel, controls).
-- **1 source without a URL** (`LottieFiles` — out of scope until URL is added).
+- After the strict audit (2026-05-09): **~155 passing, ~38 failing, 1 skipped**.
+- The 38 failing specs are **honest signals of broken EmbedPress integrations** in this build — not test-design defects. They were previously passing on wrapper-only assertions, which the user flagged as theater.
 
 ## Coverage tiers
 
-Each source's spec falls into one of these tiers based on what EmbedPress actually emits server-side. Tier dictates how strict the assertion is.
+Each source's spec falls into one of these tiers based on what EmbedPress actually emits, **including post-JS state** (vendor scripts get to run before assertions check). Tier dictates the assertion shape.
 
-### ✅ Full embed (iframe / img / blockquote)
+### ✅ Full embed (passing)
 Spec asserts the rendered embed element exists with the expected `src` (or `data-*` for blockquotes) carrying a unique URL marker.
 
 | Family | Sources |
 | --- | --- |
 | Google | Docs, Slides, Sheets, Forms, Maps, Drawing (img), Calendar |
-| YouTube | YouTube, YouTube Live, YouTube Live (Channel) |
+| YouTube | YouTube, YouTube Live, YouTube Live (Channel), YouTube Channel base |
 | YouTube Channel variants | gallery, list, grid (Pro), carousel (Pro), controls — 5 specs/editor |
 | Spotify | Playlist, Album, Artist, Single |
-| Social | Facebook Post, Facebook Video, Instagram, Twitter Feed, Tumblr, BlueskySocial, Behance |
+| Social | Facebook Post, Facebook Video, Instagram (Gutenberg only), Twitter Feed, Tumblr, BlueskySocial, Behance |
 | Audio / podcasts | Apple Podcast (Playlist + Single), Soundcloud, MixCloud, Audiomack, Hearthis, NRK Radio, Audioboom, iHeartRadio, Acast, Audiocom, Audiocom (New), Reverbnation Song, Boomplay (Playlist + Album + Single) |
-| Video hosts | Vimeo, Dailymotion, Twitch, Streamable, Coub, PeerTubeTV, Adilo, Adilo (New), Pitchhub |
+| Video hosts | Vimeo, Dailymotion, Twitch, Streamable, Coub, PeerTubeTV, Adilo, Adilo (New), Pitchhub, Vidyard, VidMount, Spotlightr |
 | Documents / presentations | Slideshare, SpeakerDeck, Sway, Cloudup |
 | Maps / 3D / interactive | Padlet, LearningApps, Flourish, Apester |
-| Images / galleries | Flickr (img), Giphy (img), Gyazo (img) |
+| Images / galleries | Flickr (img), Giphy (img), Gyazo (img), Getty Images (Elementor only — img) |
 | News / longform / talks | TED, Fader, iFixit, Meetup (img), Meetup Delete Event (img), UniversitePantheonSorbonne, CIGeography |
 
-### ⚠️ Wrapper-only
-Source emits a `[data-embed-type="…"]` (or similar) wrapper but the actual embed (iframe / image / canvas) is loaded client-side by JS, or is gated behind a Pro filter / API token the test env doesn't provision. Spec asserts the wrapper, not the player.
+### ❌ Strict-fail (broken integration)
+Spec asserts an iframe must appear inside the embedpress figure / widget within 15s. **Fails** as of the 2026-05-09 audit because no iframe ever renders — server response or post-JS. EmbedPress recognises the URL (emits a `data-embed-type` wrapper) but produces no working embed.
+
+| Source | Both editors? | What renders |
+| --- | --- | --- |
+| Afreecatv | Yes | Wrapper + raw URL as text inside it |
+| AudioClip | Yes | Wrapper only |
+| AnnieMusic | Yes | Wrapper only |
+| Reverbnation Collection | Gutenberg only (Elementor would also fail; check separately) | Wrapper only |
+| Videfit | Yes | Wrapper only |
+| BeautifulAI | Yes | Wrapper only |
+| GitHub Gist | Yes | Wrapper only — missing the gist.github.com `<script>` tag |
+| CodeSandbox | Yes | Wrapper only |
+| ActBlue | Yes | Wrapper only |
+| Matterport | Yes | Wrapper only |
+| Gloria TV | Yes | Wrapper only |
+| OpenSea Collection | Yes | Wrapper only — depends on OpenSea API content fetch that EmbedPress doesn't successfully complete in this env |
+| OpenSea Single | Yes | Wrapper only — same |
+| Archivos | Gutenberg only (Elementor is skipped — see below) | Wrapper only |
+| Getty Images | Gutenberg only (Elementor renders an iframe) | Wrapper only |
+
+Plus URL-fallback sources where EmbedPress doesn't even produce a wrapper:
+
+| Source | Both editors? | What renders |
+| --- | --- | --- |
+| Audiomeans | Yes | URL as plain text inside `<figure>`, no wrapper |
+| SmugMug | Yes | Same |
+| 23hq | Yes | Same |
+| Gumroad | Yes | Same |
+| Byzart | Yes | Same |
+| Animoto | Yes | Same |
+
+### ⏭️ Skipped
 
 | Source | Reason |
 | --- | --- |
-| Instagram (Elementor) | Pro Instagram needs `is_allow_rander` + an authenticated graph token. Gutenberg Instagram resolves to a real iframe through the embedHTML resolver. |
-| AudioClip | Player iframe is JS-injected. |
-| AnnieMusic | Player iframe is JS-injected. |
-| Reverbnation Collection | Only the wrapper renders. (`Reverbnation Song` does emit a real iframe.) |
-| Vidyard | Player iframe is loaded by Vidyard's client script. |
-| VidMount | Player iframe is JS-injected. |
-| Videfit | Player iframe is JS-injected. |
-| Spotlightr | Wrapper has `data-embed-type="cdn"` (no source-specific value); player loads via JS. |
-| Afreecatv | Wrapper renders, no server-side iframe. |
-| Getty Images | Embed is JS-injected. |
-| BeautifulAI | Player iframe is JS-injected. |
-| GitHub Gist | Gist content is fetched by a `<script>` tag client-side. |
-| CodeSandbox | Player iframe is JS-injected. |
-| ActBlue | Donate widget loads via its own script. |
-| Matterport | 3D viewer loads via its own script. |
-| Archivos (Gutenberg) | Wrapper renders; app loads via JS. |
-| Gloria TV | Player iframe loads via JS. |
-| OpenSea Collection | NFT cards are fetched from the OpenSea API; only the wrapper is in the response. |
-| OpenSea Single | Same — API-fetched, wrapper-only on the server. |
-| YouTube Channel base spec | Same shape as the variants — covers the gallery default. |
-
-### 📝 URL fallback only
-EmbedPress doesn't recognise the URL → the `[embedpress]URL[/embedpress]` shortcode falls back to rendering the URL as plain text inside the figure. Spec asserts the URL is in the rendered HTML. Not strictly "embedded" but proves the source URL round-trips through the seed/render pipeline.
-
-| Source | Note |
-| --- | --- |
-| Audiomeans | No EmbedPress provider for this URL shape. |
-| SmugMug | No EmbedPress provider for SmugMug photo pages in this build. |
-| 23hq | Not recognised. |
-| Gumroad | Not recognised. |
-| Byzart | Not recognised. |
-| Animoto | Not recognised. |
-| Archivos (Elementor) | Unsupported in Elementor — Gutenberg renders the wrapper. |
-
-### ❌ Skipped / unsupported
-
-| Source | Reason |
-| --- | --- |
-| Elementor Archivos | Elementor renders no `data-embed-type` wrapper, no widget shell, and not even the URL — nothing meaningful to assert on. Skipped via `test.skip`. |
+| Elementor Archivos | Elementor renders no `data-embed-type` wrapper, no widget shell, and not even the URL — nothing to assert on. Skipped via `test.skip`. |
 
 ### LottieFiles
 - `url: null` in `sources.json`. Add a URL via the `update-sources` skill before generating specs.
 
 ## Variants
-
-Layout / control matrices per source. Each variant gets its own seeded page (slug suffix appended) and its own spec.
 
 | Source | Variants | What's tested |
 | --- | --- | --- |
@@ -96,17 +86,30 @@ Layout / control matrices per source. Each variant gets its own seeded page (slu
 Things the current architecture deliberately does **not** exercise:
 
 1. **Editor flows** — block insertion, widget drop, control toggles, save round-trip. Belongs in plugin tests.
-2. **Source-specific Pro controls** — autoplay, loop, color, end-time, etc. (except YouTube Channel's layout/control matrix). Re-introducing means going back to editor automation OR adding more variants.
-3. **PDF / document / calendar blocks** — these have dedicated render callbacks in `EmbedPressBlockRenderer` (`render_embedpress_pdf`, `render_document`, `render_pdf_gallery`, `render_embedpress_calendar`). No specs exist.
-4. **Pro-only features** — content protection, password gating, ad manager, custom player, country restriction, lazy load, chapters / heatmap / email-capture. Untested.
-5. **Front-end JS player init** — `ytiframeapi.js` and EmbedPress player init scripts load, but we don't assert the player becomes interactive (play/pause, time updates).
-6. **Cross-browser** — Chromium only. Firefox / WebKit projects not enabled.
+2. **Source-specific Pro controls** — autoplay, loop, color, end-time, etc. (except YouTube Channel's layout/control matrix).
+3. **PDF / document / calendar blocks** — these have dedicated render callbacks in `EmbedPressBlockRenderer`. No specs exist.
+4. **Pro-only features** — content protection, password gating, ad manager, custom player, country restriction, lazy load, chapters / heatmap / email-capture.
+5. **Front-end JS player init** — we don't assert the player becomes interactive (play/pause, time updates).
+6. **Cross-browser** — Chromium only.
 7. **Mobile viewport** — no responsive / mobile project configured.
-8. **Failure modes** — invalid URLs, expired oEmbed responses, network errors, "Pro required" notice when Pro is inactive.
-9. **Authentication / capabilities** — only admin storage state. No editor / author / subscriber roles.
+8. **Failure modes** — invalid URLs, expired oEmbed responses, network errors.
+9. **Authentication / capabilities** — only admin storage state.
 10. **Source-specific API content** — OpenSea NFT cards, Instagram Pro feed, YouTube Live channel content (when no live stream is active). API-gated.
 
 ## Follow-ups (planned)
+
+### Fix the strict-fail tier upstream
+
+Each ❌ source above is a real EmbedPress integration that should be producing an iframe / image / blockquote and isn't. Triage candidates by impact (most-used sources first):
+
+- **GitHub Gist** — the fix is just emitting the standard `<script src="https://gist.github.com/.../<hash>.js"></script>` tag. The browser does the rest.
+- **CodeSandbox / BeautifulAI / Matterport / ActBlue / Gloria TV** — these all have well-known iframe embed URLs the EmbedPress provider should produce.
+- **OpenSea (Collection + Single)** — needs OpenSea API fetch logic to actually populate NFT cards. Currently the wrapper renders but content is empty.
+- **Afreecatv / Audiomeans / SmugMug / 23hq / Gumroad / Byzart / Animoto / Archivos** — provider may need to be added or rewritten.
+
+### Suite-runtime concerns
+
+The current suite takes 20-25 min when most failures hit their 15s timeout. Tightening the strict timeout (e.g. 5s — the iframe either appears in the first second or never) would cut that to ~12 min. Files to adjust: any spec containing `EmbedPress did not produce an iframe`. Tradeoff: a few sources legitimately need a few seconds for vendor JS to inject, so 5s might add false negatives.
 
 ### More layout/control variants
 
@@ -119,17 +122,13 @@ YouTube Channel proved the variants infrastructure (`VARIANTS_BY_SOURCE` in `see
 
 The skill `.claude/skills/add-source-test/SKILL.md` doesn't yet teach how to declare variants — generalising it (or moving variants out to a sibling JSON file) is the next ergonomic improvement.
 
-### Upgrade ⚠️ wrapper-only specs
-
-Most wrapper-only specs would become full-embed specs if we either:
-- Provision the source's API key / token in the test env (Instagram, YouTube Channel-style API gates), or
-- Wait for EmbedPress to render iframes server-side instead of relying on client-side script injection.
-
-Both are upstream changes.
-
 ### Investigate the SocialExplorer `marginmarginsrc` bug
 
-EmbedPress emits `<iframe marginmarginsrc="…">` for SocialExplorer where it should emit `src="…"`. This looks like a string-replace bug in the provider. The current spec asserts on the raw HTML to work around it; once fixed upstream, switch to a normal iframe selector.
+EmbedPress emits `<iframe marginmarginsrc="…">` for SocialExplorer where it should emit `src="…"`. Looks like a string-replace bug in the provider. Current spec asserts on the raw HTML to work around it; once fixed upstream, switch to a normal iframe selector.
+
+### Suite reliability
+
+In a long-running pass (90+ min of the suite), `elementor/google-forms` and `elementor/nrk-radio` flaked even though they pass cleanly in isolation. Likely Chromium / WP container resource pressure rather than a test defect. Worth investigating if the suite is run more frequently. Mitigation: parallel workers (currently 1) or per-shard runs in CI.
 
 ## Known infrastructure issues that affect coverage
 

@@ -37,7 +37,7 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: false,          // WP state is shared — run serially
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: 0,                    // single attempt; failed tests aren't retried
   workers: 1,
   timeout: 90_000,               // generous for slow Elementor UI
 
