@@ -1,14 +1,18 @@
 import { test, expect } from '@playwright/test';
 
 const SEEDED_SLUG = 'ep-elementor-vidyard';
-const WRAPPER_SEL = '[data-embed-type="Vidyard"]';
+const IFRAME_SEL  = 'iframe[src*="play.vidyard.com"]';
+const URL_MARKER  = 'jTjHc4dsR1boHPcouxx7Zc';
 
-// Vidyard's player iframe is loaded by its own client script (or requires Pro features) and isn't present in the server response. Wrapper-only assertion.
-test.describe('Elementor verify — Vidyard (wrapper only)', () => {
-  test('seeded page emits the source wrapper', async ({ page }) => {
+// Vidyard is JS-injected by its vendor script — the iframe appears in the
+// DOM only after the vendor `<script>` runs. Playwright waits for the
+// iframe to become visible before asserting on the URL marker.
+test.describe('Elementor verify — Vidyard', () => {
+  test('seeded page renders the embed (vendor script-injected)', async ({ page }) => {
     const response = await page.goto(`/${SEEDED_SLUG}/`, { waitUntil: 'load' });
     expect(response?.ok(), 'seeded page not found — run `npm run seed`').toBeTruthy();
-    const wrapper = page.locator(WRAPPER_SEL).first();
-    await expect(wrapper).toBeVisible({ timeout: 30_000 });
+    const iframe = page.locator(IFRAME_SEL).first();
+    await expect(iframe).toBeVisible({ timeout: 30_000 });
+    await expect(iframe).toHaveAttribute('src', new RegExp(URL_MARKER));
   });
 });
