@@ -35,10 +35,10 @@ if (slackEnabled) {
 export default defineConfig({
   globalSetup: './global-setup.ts',
   testDir: './tests',
-  fullyParallel: false,          // WP state is shared — run serially
+  fullyParallel: true,           // each spec hits its own seeded slug — safe to parallelise
   forbidOnly: !!process.env.CI,
   retries: 0,                    // single attempt; failed tests aren't retried
-  workers: 1,
+  workers: 4,                    // 4 parallel runners (local + CI)
   timeout: 90_000,               // generous for slow Elementor UI
 
   reporter,
