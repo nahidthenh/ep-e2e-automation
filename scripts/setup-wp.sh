@@ -15,7 +15,7 @@ if [ -f .env ]; then
   for key in WP_URL WP_ADMIN_USER WP_ADMIN_PASS WP_ADMIN_EMAIL WP_TITLE \
              MYSQL_USER MYSQL_PASSWORD MYSQL_DATABASE \
              EP_FREE_PLUGIN_PATH EP_PRO_PLUGIN_PATH \
-             YT_SECRET; do
+             YT_SECRET OPEN_SEA_SECRET; do
     val="$(grep -E "^${key}=" .env | head -n1 | cut -d= -f2- \
             | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)"
     if [ -n "$val" ]; then export "${key}=${val}"; fi
@@ -125,6 +125,16 @@ if [ -n "${YT_SECRET:-}" ]; then
   echo "  ✓ YouTube API key written to embedpress:youtube"
 else
   echo "  YT_SECRET unset — YouTube Channel renders will show the API-key placeholder"
+fi
+
+echo "━━━ Configuring EmbedPress OpenSea API key ━━━"
+if [ -n "${OPEN_SEA_SECRET:-}" ]; then
+  printf '{"api_key":"%s"}' "$OPEN_SEA_SECRET" \
+    | docker exec -i "$WP_CONTAINER" \
+        wp option update 'embedpress:opensea' --format=json --allow-root --path=/var/www/html
+  echo "  ✓ OpenSea API key written to embedpress:opensea"
+else
+  echo "  OPEN_SEA_SECRET unset — OpenSea renders will use the built-in demo key (may be rate-limited)"
 fi
 
 echo "━━━ Setting permalink structure ━━━"
