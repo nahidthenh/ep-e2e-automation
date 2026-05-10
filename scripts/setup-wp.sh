@@ -81,6 +81,9 @@ wp_cli core install \
 echo "━━━ Installing Elementor ━━━"
 wp_cli plugin install elementor --activate
 
+echo "━━━ Installing Hello Elementor theme ━━━"
+wp_cli theme install hello-elementor --activate
+
 echo "━━━ Installing EmbedPress (free) ━━━"
 if [ -n "$EP_FREE_PLUGIN_PATH" ]; then
   if install_plugin_from_path "embedpress" "$EP_FREE_PLUGIN_PATH"; then

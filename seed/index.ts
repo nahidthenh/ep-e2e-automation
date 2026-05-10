@@ -87,6 +87,15 @@ const VARIANTS_BY_SOURCE: Record<string, Variant[]> = {
       // string disables the download button.
       elementorSettings: { pdf_print_download: '' },
     },
+    {
+      suffix: '-flipbook',
+      // `viewerStyle: 'flip-book'` switches the Gutenberg block to the 3D
+      // flip-book renderer (flipbookRenderer URL) instead of the standard
+      // PDF.js viewer. Elementor uses the `embedpress_pdf_viewer_style`
+      // SELECT control with the same value.
+      gutenbergAttrs:    { viewerStyle: 'flip-book' },
+      elementorSettings: { embedpress_pdf_viewer_style: 'flip-book' },
+    },
   ],
 };
 

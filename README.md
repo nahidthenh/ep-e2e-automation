@@ -47,52 +47,77 @@ Playwright + Docker regression tests for the EmbedPress WordPress plugin.
 
 ### Prerequisites
 
-- Docker Desktop running
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) running
 - Node.js 20+
-- EmbedPress zip (if testing a dev build — otherwise the free version is
-  fetched from wordpress.org automatically)
+- Git access to both private plugin repos (`WPDevelopers/embedpress` and `WPDevelopers/embedpress-pro`)
 
-### 1. Environment
+### 1. Clone the plugin repos
+
+The setup script installs EmbedPress from your local checkouts rather than
+wordpress.org, so both repos need to be cloned alongside this one first.
+
+```bash
+# Recommended layout — clone next to this repo
+git clone https://github.com/WPDevelopers/embedpress     ../EmbedPress/embedpress
+git clone https://github.com/WPDevelopers/embedpress-pro ../EmbedPress/embedpress-pro
+```
+
+You can clone them anywhere — just update `EP_FREE_PLUGIN_PATH` and
+`EP_PRO_PLUGIN_PATH` in `.env` to match.
+
+### 2. Environment
 
 ```bash
 cp .env.example .env
-# Adjust WP_ADMIN_PASS and any port conflicts if needed
 ```
 
-### 2. Start containers
+Open `.env` and verify these two paths point to your local clones:
 
-```bash
-docker-compose up -d --build
+```dotenv
+EP_FREE_PLUGIN_PATH=../EmbedPress/embedpress
+EP_PRO_PLUGIN_PATH=../EmbedPress/embedpress-pro
 ```
 
-### 3. Wait for WordPress
+Adjust `WP_PORT` if 8080 is already taken, and optionally set `YT_SECRET`
+(YouTube Data API key) and `SLACK_BOT_TOKEN` / `SLACK_CHANNEL_ID` for
+Slack reporting.
 
-```bash
-bash scripts/wait-for-wp.sh
-```
+### 3. Install Node dependencies
 
-### 4. Install WordPress + plugins + seed data
-
-```bash
-bash scripts/setup-wp.sh
-```
-
-> **Custom EmbedPress zip**: edit `setup-wp.sh` and replace the
-> `wp plugin install embedpress --activate` line with:
-> ```bash
-> docker cp /path/to/embedpress.zip ep_e2e_wp:/tmp/
-> docker exec ep_e2e_wp wp plugin install /tmp/embedpress.zip \
->   --activate --path=/var/www/html --allow-root
-> ```
-
-### 5. Install Playwright
+`setup-wp.sh` calls `npx tsx` internally, so node_modules must exist before
+you run it.
 
 ```bash
 npm ci
 npx playwright install --with-deps chromium
 ```
 
-### 6. Run tests
+### 4. Start containers
+
+```bash
+docker-compose up -d --build
+```
+
+### 5. Wait for WordPress
+
+```bash
+bash scripts/wait-for-wp.sh
+```
+
+### 6. Install WordPress + plugins + seed data
+
+```bash
+bash scripts/setup-wp.sh
+```
+
+This single script:
+- Installs WordPress core
+- Installs and activates Elementor + Hello Elementor theme
+- Copies EmbedPress free and Pro from your local clones into the container
+- Writes the YouTube API key (if `YT_SECRET` is set)
+- Uploads the PDF fixture and seeds all test pages from `sources.json`
+
+### 7. Run tests
 
 ```bash
 # All tests
@@ -179,3 +204,6 @@ docker-compose down -v
 docker-compose up -d --build
 bash scripts/wait-for-wp.sh && bash scripts/setup-wp.sh
 ```
+
+> Ensure `npm ci` has been run at least once before `setup-wp.sh` — it
+> depends on `npx tsx` being available in `node_modules`.

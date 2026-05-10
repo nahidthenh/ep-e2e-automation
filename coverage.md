@@ -10,7 +10,7 @@ Tests are **verification-only**. The seed pipeline (`seed/index.ts`) publishes o
 
 - **92 / 92** sources with a URL in `sources.json` have at least one verification spec.
 - **+1 synthetic source** (`PDF`, uploaded as a WP attachment at setup time, not in `sources.json`).
-- **199 specs total** (smoke 3 + Gutenberg 98 + Elementor 98) — 4 new PDF specs since the audit.
+- **201 specs total** (smoke 3 + Gutenberg 99 + Elementor 99) — 6 PDF specs (default, no-download, flipbook × 2 editors).
 - After the strict audit (2026-05-09): **~155 passing, ~38 failing, 1 skipped**.
 - The 38 failing specs are **honest signals of broken EmbedPress integrations** in this build — not test-design defects. They were previously passing on wrapper-only assertions, which the user flagged as theater.
 
@@ -81,7 +81,7 @@ Plus URL-fallback sources where EmbedPress doesn't even produce a wrapper:
 | Source | Variants | What's tested |
 | --- | --- | --- |
 | YouTube Channel | `gallery` (default), `list`, `grid` (Pro), `carousel` (Pro), `controls` (`pagesize=3`, `ispagination=false`, `gapbetweenvideos=10`) | Layout class on `.ep-player-wrap`, channel name, video-card count, pagination visibility |
-| PDF (synthetic — uploaded fixture, not in `sources.json`) | `default`, `no-download` | `iframe.embedpress-embed-document-pdf` is visible; base64 `#key=…` payload contains `download=true\|yes` (default) or `download=false\|''\|no` (no-download). Gutenberg uses `download` (boolean) attr; Elementor uses `pdf_print_download` (SWITCHER `'yes'` / `''`). |
+| PDF (synthetic — uploaded fixture, not in `sources.json`) | `default`, `no-download`, `flipbook` | `iframe.embedpress-embed-document-pdf` is visible; base64 `#key=…` payload contains `download=true\|yes` (default) or `download=false\|''\|no` (no-download). Gutenberg uses `download` (boolean) attr; Elementor uses `pdf_print_download` (SWITCHER `'yes'` / `''`). Flip-book variant sets `viewerStyle: 'flip-book'` (Gutenberg) / `embedpress_pdf_viewer_style: 'flip-book'` (Elementor); the iframe src switches from `#key=` hash to `?file=…&key=…` query-param format, and Gutenberg stamps `data-viewer-style="flip-book"` on the iframe. |
 
 ## Coverage gaps beyond URL-renders
 

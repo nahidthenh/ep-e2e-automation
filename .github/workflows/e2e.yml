@@ -134,6 +134,11 @@ jobs:
           docker exec ep_e2e_wp wp plugin install elementor --activate \
             --path=/var/www/html --allow-root
 
+      - name: Install Hello Elementor theme
+        run: |
+          docker exec ep_e2e_wp wp theme install hello-elementor --activate \
+            --path=/var/www/html --allow-root
+
       - name: Install EmbedPress (free) from GitHub build
         run: |
           docker exec ep_e2e_wp wp plugin delete embedpress \
