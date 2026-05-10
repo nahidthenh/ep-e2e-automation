@@ -20,6 +20,8 @@ import { buildGutenbergContent } from './editors/gutenberg';
 import { buildElementorData } from './editors/elementor';
 import { buildGutenbergPdfContent } from './editors/gutenberg-pdf';
 import { buildElementorPdfData } from './editors/elementor-pdf';
+import { buildGutenbergPdfGalleryContent } from './editors/gutenberg-pdf-gallery';
+import { buildElementorPdfGalleryData } from './editors/elementor-pdf-gallery';
 
 /**
  * PDF is a "synthetic" source — it doesn't live in sources.json because there's
@@ -35,13 +37,12 @@ function readPdfUrl(): string | null {
   return url || null;
 }
 
-// Start well above any WP system-post range. Bumped from 1000 → 10000 once
-// YouTube Channel variants pushed the seed range past WP's auto-drafts at
-// 1184+, then bumped again to 100000 once the PDF fixture upload pushed an
-// attachment into the 10000-10195 range. Pick a number high enough that
-// normal admin activity won't collide with the seed range — there is no
-// downside to the larger number.
-const SEED_ID_START = 100000;
+// Start well above any WP system-post range. Bumped from 1000 → 10000 →
+// 100000 → 500000 as WordPress kept creating attachments/revisions that
+// collided with seed IDs (the PDF fixture upload landed at 100198, revisions
+// at 100199+). 500000 gives ample headroom — normal admin activity would need
+// to create ~400k posts to reach this range.
+const SEED_ID_START = 500000;
 const ELEMENTOR_VERSION = '3.18.0';
 
 /**
@@ -95,6 +96,56 @@ const VARIANTS_BY_SOURCE: Record<string, Variant[]> = {
       // SELECT control with the same value.
       gutenbergAttrs:    { viewerStyle: 'flip-book' },
       elementorSettings: { embedpress_pdf_viewer_style: 'flip-book' },
+    },
+  ],
+
+  // PDF Gallery — synthetic source reusing the same uploaded PDF.
+  // Tests cover the three UI layouts (grid/masonry/carousel) plus a controls
+  // variant that disables viewer toolbar and download to assert the
+  // base64 viewer-params payload. Carousel is Pro-gated; the PHP renderer
+  // silently falls back to 'grid' when Pro is absent.
+  //
+  // Gutenberg: the block crashes on insert (wrapFiltered bug — see
+  // tests/gutenberg/editor-insert/pdf-gallery-editor-insert.spec.ts).
+  // Gutenberg pages are still seeded (using the shortcode builder as a
+  // working workaround) but Gutenberg front-end specs are skipped for now.
+  'PDF Gallery': [
+    {
+      suffix: '',
+      gutenbergAttrs: {},
+      elementorSettings: {},
+    },
+    {
+      suffix: '-masonry',
+      gutenbergAttrs: {},
+      elementorSettings: { layout: 'masonry' },
+    },
+    {
+      // carousel and bookshelf layouts are Pro-gated — PHP falls back to
+      // 'grid' when EMBEDPRESS_SL_ITEM_SLUG is not defined. The spec
+      // handles the fallback via a Pro-active check.
+      suffix: '-carousel',
+      gutenbergAttrs: {},
+      elementorSettings: {
+        layout: 'carousel',
+        carousel_arrows: 'yes',
+        carousel_dots: 'yes',
+        carousel_loop: 'yes',
+      },
+    },
+    {
+      // Controls variant: toolbar and download disabled (Pro-gated), plus
+      // presentation mode disabled. Tests decode data-viewer-params and
+      // assert the expected boolean values.
+      suffix: '-controls',
+      gutenbergAttrs: {},
+      elementorSettings: {
+        layout: 'grid',
+        columns: '2',
+        pdf_toolbar: '',
+        download: '',
+        presentation: '',
+      },
     },
   ],
 };
@@ -159,12 +210,17 @@ function emitDeletes(targets: Target[]): string {
 function emitGutenberg(id: number, source: Source, variant: Variant): string {
   const slug = variantSlug('gutenberg', source.source, variant);
   const title = variantTitle('gutenberg', source.source, variant);
-  // PDF uses a different block (`embedpress/embedpress-pdf`) than the generic
-  // embedpress block — its render callback takes `href` + display attrs and
-  // produces an iframe via the legacy renderer when inner content is empty.
-  const content = source.source === 'PDF'
-    ? buildGutenbergPdfContent(source.url!, variant.gutenbergAttrs)
-    : buildGutenbergContent(source.url!, variant.gutenbergAttrs);
+  // Route each synthetic source to its own block builder. PDF Gallery uses a
+  // wp:shortcode wrapper (embedpress_pdf_gallery shortcode) so the PHP resolver
+  // renders it on the front-end without needing a pre-baked save() output.
+  let content: string;
+  if (source.source === 'PDF') {
+    content = buildGutenbergPdfContent(source.url!, variant.gutenbergAttrs);
+  } else if (source.source === 'PDF Gallery') {
+    content = buildGutenbergPdfGalleryContent(source.url!);
+  } else {
+    content = buildGutenbergContent(source.url!, variant.gutenbergAttrs);
+  }
   return `
 -- ${source.source} (Gutenberg)
 INSERT INTO wp_posts
@@ -191,11 +247,16 @@ INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES
 function emitElementor(id: number, source: Source, variant: Variant): string {
   const slug = variantSlug('elementor', source.source, variant);
   const title = variantTitle('elementor', source.source, variant);
-  // PDF uses the dedicated `embedpress_pdf` widget (different settings shape
-  // from the generic `embedpres_elementor` widget — note the typo).
-  const elementorData = source.source === 'PDF'
-    ? buildElementorPdfData(source.url!, variant.elementorSettings)
-    : buildElementorData(source.url!, source.source, variant.elementorSettings);
+  // Each synthetic source uses a dedicated widget builder. PDF Gallery uses the
+  // `embedpress_pdf_gallery` Elementor widget with a pdf_items_json payload.
+  let elementorData: string;
+  if (source.source === 'PDF') {
+    elementorData = buildElementorPdfData(source.url!, variant.elementorSettings);
+  } else if (source.source === 'PDF Gallery') {
+    elementorData = buildElementorPdfGalleryData(source.url!, variant.elementorSettings);
+  } else {
+    elementorData = buildElementorData(source.url!, source.source, variant.elementorSettings);
+  }
   return `
 -- ${source.source} (Elementor)
 INSERT INTO wp_posts
@@ -234,9 +295,11 @@ function main(): void {
   const pdfUrl = readPdfUrl();
   if (pdfUrl) {
     all.push({ source: 'PDF', url: pdfUrl });
+    // PDF Gallery reuses the same uploaded PDF as its first (and only) item.
+    all.push({ source: 'PDF Gallery', url: pdfUrl });
   } else {
     process.stderr.write(
-      `note: ${PDF_URL_FILE} not found — PDF variants skipped. Run \`npm run setup\` to upload the fixture first.\n`,
+      `note: ${PDF_URL_FILE} not found — PDF and PDF Gallery variants skipped. Run \`npm run setup\` to upload the fixture first.\n`,
     );
   }
 
