@@ -30,5 +30,5 @@ export function pageSlug(editor: Editor, sourceName: string): string {
 
 export function pageTitle(editor: Editor, sourceName: string): string {
   const label = editor === 'gutenberg' ? 'Gutenberg' : 'Elementor';
-  return `EP ${label} — ${sourceName}`;
+  return `EP ${label} - ${sourceName}`;
 }

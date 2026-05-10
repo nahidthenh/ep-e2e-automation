@@ -30,10 +30,13 @@ MYSQL_DB="${MYSQL_DATABASE:-wordpress}"
 DB_CONTAINER="${DB_CONTAINER:-ep_e2e_db}"
 WP_CONTAINER="${WP_CONTAINER:-ep_e2e_wp}"
 
-# Generate SQL → pipe into MySQL inside the DB container
+# Generate SQL → pipe into MySQL inside the DB container.
+# --default-character-set=utf8mb4 ensures the connection uses UTF-8 so
+# multi-byte characters (em dashes, accented letters, etc.) are stored correctly
+# instead of being misinterpreted as latin1 and producing mojibake on the page.
 npx tsx seed/index.ts "$@" \
   | docker exec -i "$DB_CONTAINER" \
-      mysql -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB"
+      mysql --default-character-set=utf8mb4 -u"$MYSQL_USER" -p"$MYSQL_PASS" "$MYSQL_DB"
 
 # Resolve [embedpress] shortcodes in seeded Gutenberg pages and bake the iframe
 # HTML into the embedpress/embedpress block (inner content + `embedHTML`
