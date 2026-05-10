@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const SEEDED_SLUG = 'ep-elementor-facebook-post';
 const IFRAME_SEL  = 'iframe[src*="facebook.com/plugins/post"]';
-const URL_MARKER  = '2430125363903041';
+const URL_MARKER  = '1125772632911434';
 
 test.describe('Elementor verify — Facebook Post', () => {
   test('seeded page renders the embed', async ({ page }) => {

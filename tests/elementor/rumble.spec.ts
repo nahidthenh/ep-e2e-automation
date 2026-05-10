@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const SEEDED_SLUG = 'ep-elementor-rumble';
-const VIDEO_ID    = 'v6alqqm';
+const VIDEO_ID    = 'v774q4o';
 
 test.describe('Elementor verify — Rumble', () => {
   test('seeded page emits the rumble embed URL', async ({ page }) => {

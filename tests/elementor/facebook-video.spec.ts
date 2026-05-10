@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 const SEEDED_SLUG = 'ep-elementor-facebook-video';
 const IFRAME_SEL  = 'iframe[src*="facebook.com/plugins/post"]';
-const URL_MARKER  = '948152072778319';
+const URL_MARKER  = '7439955576048375';
 
 test.describe('Elementor verify — Facebook Video', () => {
   test('seeded page renders the embed', async ({ page }) => {

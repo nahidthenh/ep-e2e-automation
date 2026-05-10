@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const SEEDED_SLUG = 'ep-gutenberg-rumble';
-const VIDEO_ID    = 'v6alqqm';
+const VIDEO_ID    = 'v774q4o';
 
 // Rumble's wrapper holds the embed URL as text; the player iframe is injected
 // by Rumble's client script at runtime. We assert on the raw response so the
