@@ -137,6 +137,23 @@ echo "━━━ Fixing wp-content ownership ━━━"
 # "Could not fully remove the plugin/theme".
 docker exec "$WP_CONTAINER" chown -R www-data:www-data /var/www/html/wp-content
 
+echo "━━━ Uploading PDF fixture for embedpress-pdf specs ━━━"
+# Generate the fixture if missing (idempotent), copy into the container,
+# import as WP media, capture the resulting URL into seed/fixtures/.sample-pdf-url
+# so the seed pipeline can build pdf-block markup pointing at it.
+PDF_FIXTURE="seed/fixtures/sample.pdf"
+PDF_URL_FILE="seed/fixtures/.sample-pdf-url"
+if [ ! -f "$PDF_FIXTURE" ]; then
+  npx tsx seed/fixtures/make-sample-pdf.ts >/dev/null
+fi
+docker cp "$PDF_FIXTURE" "$WP_CONTAINER:/tmp/sample.pdf"
+PDF_ATTACHMENT_ID="$(docker exec "$WP_CONTAINER" \
+  wp media import /tmp/sample.pdf --porcelain --path=/var/www/html --allow-root)"
+PDF_URL="$(docker exec "$WP_CONTAINER" \
+  wp post get "$PDF_ATTACHMENT_ID" --field=guid --path=/var/www/html --allow-root)"
+echo "$PDF_URL" > "$PDF_URL_FILE"
+echo "  ✓ uploaded sample.pdf as attachment $PDF_ATTACHMENT_ID → $PDF_URL"
+
 echo "━━━ Seeding test pages from sources.json ━━━"
 bash scripts/seed-pages.sh
 

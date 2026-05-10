@@ -13,16 +13,35 @@
  * The output is meant to be piped into MySQL inside the docker container:
  *   tsx seed/index.ts | docker exec -i ep_e2e_db mysql -uwpuser -pwppass wordpress
  */
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 import { Editor, Source, getSources, pageSlug, pageTitle } from './sources';
 import { buildGutenbergContent } from './editors/gutenberg';
 import { buildElementorData } from './editors/elementor';
+import { buildGutenbergPdfContent } from './editors/gutenberg-pdf';
+import { buildElementorPdfData } from './editors/elementor-pdf';
 
-// Start above the range WordPress uses for auto-drafts, wp_navigation,
-// and wp_global_styles so the seeded IDs don't collide with system posts
-// created during normal admin activity. Bumped from 1000 once the YouTube
-// Channel variants pushed the seed range past 1183, which is where WP's
-// system posts started landing in this environment.
-const SEED_ID_START = 10000;
+/**
+ * PDF is a "synthetic" source — it doesn't live in sources.json because there's
+ * no public URL: the test PDF is uploaded into WP at setup time and its
+ * resulting attachment URL is captured into seed/fixtures/.sample-pdf-url.
+ * Skip the PDF variants if that file is absent (typically because the user
+ * ran the seed without first running setup-wp.sh).
+ */
+const PDF_URL_FILE = join(__dirname, 'fixtures', '.sample-pdf-url');
+function readPdfUrl(): string | null {
+  if (!existsSync(PDF_URL_FILE)) return null;
+  const url = readFileSync(PDF_URL_FILE, 'utf8').trim();
+  return url || null;
+}
+
+// Start well above any WP system-post range. Bumped from 1000 → 10000 once
+// YouTube Channel variants pushed the seed range past WP's auto-drafts at
+// 1184+, then bumped again to 100000 once the PDF fixture upload pushed an
+// attachment into the 10000-10195 range. Pick a number high enough that
+// normal admin activity won't collide with the seed range — there is no
+// downside to the larger number.
+const SEED_ID_START = 100000;
 const ELEMENTOR_VERSION = '3.18.0';
 
 /**
@@ -54,6 +73,19 @@ const VARIANTS_BY_SOURCE: Record<string, Variant[]> = {
       suffix: '-controls',
       gutenbergAttrs:    { ytChannelLayout: 'gallery', pagesize: '3', ispagination: false, gapbetweenvideos: 10 },
       elementorSettings: { ytChannelLayout: 'gallery', pagesize: '3', ispagination: '',    gapbetweenvideos: { unit: 'px', size: 10 } },
+    },
+  ],
+
+  // PDF — the synthetic source seeded from the WP-uploaded fixture. Variant
+  // attrs map to the embedpress-pdf block / embedpress_pdf widget controls.
+  'PDF': [
+    { suffix: '',             gutenbergAttrs: {}, elementorSettings: {} },
+    {
+      suffix: '-no-download',
+      gutenbergAttrs:    { download: false },
+      // Elementor PDF widget uses `pdf_print_download` (SWITCHER) — empty
+      // string disables the download button.
+      elementorSettings: { pdf_print_download: '' },
     },
   ],
 };
@@ -118,7 +150,12 @@ function emitDeletes(targets: Target[]): string {
 function emitGutenberg(id: number, source: Source, variant: Variant): string {
   const slug = variantSlug('gutenberg', source.source, variant);
   const title = variantTitle('gutenberg', source.source, variant);
-  const content = buildGutenbergContent(source.url!, variant.gutenbergAttrs);
+  // PDF uses a different block (`embedpress/embedpress-pdf`) than the generic
+  // embedpress block — its render callback takes `href` + display attrs and
+  // produces an iframe via the legacy renderer when inner content is empty.
+  const content = source.source === 'PDF'
+    ? buildGutenbergPdfContent(source.url!, variant.gutenbergAttrs)
+    : buildGutenbergContent(source.url!, variant.gutenbergAttrs);
   return `
 -- ${source.source} (Gutenberg)
 INSERT INTO wp_posts
@@ -145,11 +182,11 @@ INSERT INTO wp_postmeta (post_id, meta_key, meta_value) VALUES
 function emitElementor(id: number, source: Source, variant: Variant): string {
   const slug = variantSlug('elementor', source.source, variant);
   const title = variantTitle('elementor', source.source, variant);
-  const elementorData = buildElementorData(
-    source.url!,
-    source.source,
-    variant.elementorSettings,
-  );
+  // PDF uses the dedicated `embedpress_pdf` widget (different settings shape
+  // from the generic `embedpres_elementor` widget — note the typo).
+  const elementorData = source.source === 'PDF'
+    ? buildElementorPdfData(source.url!, variant.elementorSettings)
+    : buildElementorData(source.url!, source.source, variant.elementorSettings);
   return `
 -- ${source.source} (Elementor)
 INSERT INTO wp_posts
@@ -181,6 +218,19 @@ function main(): void {
   const args = parseArgs(process.argv.slice(2));
 
   const all = getSources().filter((s) => s.url);
+
+  // Inject the synthetic "PDF" source if the fixture has been uploaded.
+  // Without the URL file, skip silently — the seed still works for every
+  // other source; only PDF specs will fail to find their seeded pages.
+  const pdfUrl = readPdfUrl();
+  if (pdfUrl) {
+    all.push({ source: 'PDF', url: pdfUrl });
+  } else {
+    process.stderr.write(
+      `note: ${PDF_URL_FILE} not found — PDF variants skipped. Run \`npm run setup\` to upload the fixture first.\n`,
+    );
+  }
+
   const filtered = args.source
     ? all.filter((s) => s.source.toLowerCase() === args.source!.toLowerCase())
     : all;

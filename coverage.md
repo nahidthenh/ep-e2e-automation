@@ -9,7 +9,8 @@ Tests are **verification-only**. The seed pipeline (`seed/index.ts`) publishes o
 ## Headline numbers
 
 - **92 / 92** sources with a URL in `sources.json` have at least one verification spec.
-- **195 specs total** (smoke 3 + Gutenberg 96 + Elementor 96).
+- **+1 synthetic source** (`PDF`, uploaded as a WP attachment at setup time, not in `sources.json`).
+- **199 specs total** (smoke 3 + Gutenberg 98 + Elementor 98) — 4 new PDF specs since the audit.
 - After the strict audit (2026-05-09): **~155 passing, ~38 failing, 1 skipped**.
 - The 38 failing specs are **honest signals of broken EmbedPress integrations** in this build — not test-design defects. They were previously passing on wrapper-only assertions, which the user flagged as theater.
 
@@ -80,6 +81,7 @@ Plus URL-fallback sources where EmbedPress doesn't even produce a wrapper:
 | Source | Variants | What's tested |
 | --- | --- | --- |
 | YouTube Channel | `gallery` (default), `list`, `grid` (Pro), `carousel` (Pro), `controls` (`pagesize=3`, `ispagination=false`, `gapbetweenvideos=10`) | Layout class on `.ep-player-wrap`, channel name, video-card count, pagination visibility |
+| PDF (synthetic — uploaded fixture, not in `sources.json`) | `default`, `no-download` | `iframe.embedpress-embed-document-pdf` is visible; base64 `#key=…` payload contains `download=true\|yes` (default) or `download=false\|''\|no` (no-download). Gutenberg uses `download` (boolean) attr; Elementor uses `pdf_print_download` (SWITCHER `'yes'` / `''`). |
 
 ## Coverage gaps beyond URL-renders
 
@@ -87,7 +89,7 @@ Things the current architecture deliberately does **not** exercise:
 
 1. **Editor flows** — block insertion, widget drop, control toggles, save round-trip. Belongs in plugin tests.
 2. **Source-specific Pro controls** — autoplay, loop, color, end-time, etc. (except YouTube Channel's layout/control matrix).
-3. **PDF / document / calendar blocks** — these have dedicated render callbacks in `EmbedPressBlockRenderer`. No specs exist.
+3. **Document / calendar blocks** — `embedpress/document` and `embedpress/embedpress-calendar` have dedicated render callbacks in `EmbedPressBlockRenderer` and aren't covered yet (PDF block now is — see [§ Variants](#variants)).
 4. **Pro-only features** — content protection, password gating, ad manager, custom player, country restriction, lazy load, chapters / heatmap / email-capture.
 5. **Front-end JS player init** — we don't assert the player becomes interactive (play/pause, time updates).
 6. **Cross-browser** — Chromium only.

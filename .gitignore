@@ -8,3 +8,8 @@ dist/
 .env
 playwright-report/
 test-results/
+
+# Captured at setup time by `wp media import` — environment-specific (the
+# URL contains WP_URL + the upload year/month subdir). Do not commit; the
+# setup step re-writes it on every fresh install.
+seed/fixtures/.sample-pdf-url

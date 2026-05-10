@@ -184,6 +184,22 @@ jobs:
             echo "YT_SECRET unset — YouTube Channel renders will show the API-key placeholder (related strict specs will fail)"
           fi
 
+      - name: Upload PDF fixture for embedpress-pdf specs
+        # Generates seed/fixtures/sample.pdf if absent, copies it into the WP
+        # container, runs `wp media import`, and writes the resulting URL to
+        # seed/fixtures/.sample-pdf-url so the seed step can build PDF block /
+        # widget markup pointing at it. Mirrors setup-wp.sh.
+        run: |
+          set -euo pipefail
+          npx tsx seed/fixtures/make-sample-pdf.ts
+          docker cp seed/fixtures/sample.pdf ep_e2e_wp:/tmp/sample.pdf
+          PDF_ATTACHMENT_ID="$(docker exec ep_e2e_wp \
+            wp media import /tmp/sample.pdf --porcelain --path=/var/www/html --allow-root)"
+          PDF_URL="$(docker exec ep_e2e_wp \
+            wp post get "$PDF_ATTACHMENT_ID" --field=guid --path=/var/www/html --allow-root)"
+          echo "$PDF_URL" > seed/fixtures/.sample-pdf-url
+          echo "✓ uploaded sample.pdf as attachment $PDF_ATTACHMENT_ID → $PDF_URL"
+
       - name: Seed test pages from sources.json
         run: bash scripts/seed-pages.sh
 
