@@ -17,8 +17,8 @@ if [ -f .env ]; then
              EP_FREE_PLUGIN_PATH EP_PRO_PLUGIN_PATH \
              YT_SECRET; do
     val="$(grep -E "^${key}=" .env | head -n1 | cut -d= -f2- \
-            | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")"
-    [ -n "$val" ] && export "${key}=${val}"
+            | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//" || true)"
+    if [ -n "$val" ]; then export "${key}=${val}"; fi
   done
 fi
 
