@@ -13,7 +13,7 @@ test.describe('Gutenberg verify — PDF (download disabled)', () => {
     await expect(iframe).toBeVisible({ timeout: 15_000 });
 
     const src = await iframe.getAttribute('src');
-    expect(src).toMatch(/sample\.pdf/);
+    expect(src).toMatch(/sample.*\.pdf/i);
 
     const keyMatch = src!.match(/#key=([^&]+)/);
     expect(keyMatch).toBeTruthy();

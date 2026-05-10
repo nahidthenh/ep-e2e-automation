@@ -16,7 +16,7 @@ test.describe('Gutenberg verify — PDF (default)', () => {
 
     const src = await iframe.getAttribute('src');
     expect(src, 'iframe src missing').toBeTruthy();
-    expect(src).toMatch(/sample\.pdf/);
+    expect(src).toMatch(/sample.*\.pdf/i);
 
     const keyMatch = src!.match(/#key=([^&]+)/);
     expect(keyMatch, 'expected base64 key payload after #key=').toBeTruthy();

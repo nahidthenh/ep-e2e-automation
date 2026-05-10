@@ -271,11 +271,19 @@ function main(): void {
     emitDeletes(targets),
   ];
 
+  // Iterate over the FULL source list to keep IDs stable regardless of
+  // --source / --editor filters. Each source always occupies the same ID
+  // slots (gutenberg slot, then elementor slot) whether or not it is being
+  // emitted this run — so a partial re-seed never collides with existing pages.
+  const emitSet = new Set(filtered.map((s) => s.source));
   let nextId = SEED_ID_START;
-  for (const s of filtered) {
+  for (const s of all) {
     for (const v of getVariants(s.source)) {
-      if (editors.includes('gutenberg')) out.push(emitGutenberg(nextId++, s, v));
-      if (editors.includes('elementor')) out.push(emitElementor(nextId++, s, v));
+      const emit = emitSet.has(s.source);
+      if (emit && editors.includes('gutenberg')) out.push(emitGutenberg(nextId, s, v));
+      nextId++; // gutenberg slot — always advance
+      if (emit && editors.includes('elementor')) out.push(emitElementor(nextId, s, v));
+      nextId++; // elementor slot — always advance
     }
   }
 
