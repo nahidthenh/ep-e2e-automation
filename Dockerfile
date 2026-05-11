@@ -10,6 +10,14 @@ RUN apt-get update && apt-get install -y \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
+# Increase PHP upload limits for large plugin/theme uploads.
+RUN { \
+    echo "upload_max_filesize = 256M"; \
+    echo "post_max_size = 256M"; \
+    echo "memory_limit = 256M"; \
+    echo "max_execution_time = 300"; \
+} > /usr/local/etc/php/conf.d/uploads.ini
+
 # WP-CLI
 RUN curl -sL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
     -o /usr/local/bin/wp \
